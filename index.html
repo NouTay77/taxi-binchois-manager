@@ -728,7 +728,7 @@ function adminLayout(app, c, activePage, contentHTML) {
   app.querySelectorAll('.nav-btn').forEach(btn => {
     btn.onclick = () => { APP.currentPage = btn.dataset.page; render(); };
   });
-  const logout = () => {
+  const logout = async () => {
     // Envoyer une notification de déconnexion et le récapitulatif journalier
     if (APP.currentUser && APP.currentUser.role === 'chauffeur' && APP.allData.length < 999) {
       const admins = getUsers().filter(a => a.role === 'admin');
