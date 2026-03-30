@@ -31,8 +31,41 @@ window.dataSdk = {
 
   async create(item) {
     // On génère un ID unique pour que Redis ne s'emmêle pas les pinceaux
-    const newItem = { ...item, __backendId: Date.now().toString(), active: true };
+    const newItem = { ...item, __backendId: Date.now().toString() + Math.random().toString(36).substr(2,5), active: true };
     this.data.push(newItem);
+    await this.save();
+    return { isOk: true, item: newItem };
+  },
+
+  async update(item) {
+    // Chercher l'item à mettre à jour par __backendId
+    if (!item || !item.__backendId) {
+      return { isOk: false, error: 'Missing __backendId' };
+    }
+    
+    const index = this.data.findIndex(d => d.__backendId === item.__backendId);
+    if (index === -1) {
+      return { isOk: false, error: 'Item not found' };
+    }
+    
+    // Remplacer l'item tout en gardant tous les champs
+    this.data[index] = { ...this.data[index], ...item };
+    await this.save();
+    return { isOk: true, item: this.data[index] };
+  },
+
+  async delete(item) {
+    // Supprimer l'item par __backendId
+    if (!item || !item.__backendId) {
+      return { isOk: false, error: 'Missing __backendId' };
+    }
+    
+    const index = this.data.findIndex(d => d.__backendId === item.__backendId);
+    if (index === -1) {
+      return { isOk: false, error: 'Item not found' };
+    }
+    
+    this.data.splice(index, 1);
     await this.save();
     return { isOk: true };
   },
@@ -42,7 +75,7 @@ window.dataSdk = {
     localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
     if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
     
-    // 2. Envoi au Cloud (Redis)
+    // 2. Envoi au Cloud (Redis/sync-excel)
     try {
       await fetch('/api/sync-excel', {
         method: 'POST',
