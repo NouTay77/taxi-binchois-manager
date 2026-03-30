@@ -240,13 +240,16 @@ const dataHandler = {
 };
 
 async function initApp() {
-  console.log('Initialisation du SDK données...');
+console.log('Initialisation du SDK données...');
   const r = await window.dataSdk.init(dataHandler);
-  if (!r.isOk) {
-    console.error('Erreur initialisation données:', r.error);
-    showToast('Erreur initialisation données','error');
-  } else {
+  
+  if (r.isOk) {
     console.log('SDK données initialisé avec succès');
+    // On force un premier rendu pour masquer le bouton "Créer Admin" 
+    // si des données sont arrivées du Cloud
+    render(); 
+  } else {
+    showToast('Erreur de connexion au Cloud','error');
   }
 }
 initApp();
@@ -428,6 +431,8 @@ function render() {
 }
 
 function renderLogin(app, c) {
+  const admins = getUsers().filter(u => u.role === 'admin');
+console.log("Admins détectés au rendu :", admins.length);
   const title = cfg('app_title');
   const subtitle = cfg('login_subtitle');
   app.innerHTML = `
@@ -536,22 +541,41 @@ function renderLogin(app, c) {
 
 
   document.getElementById('setup-btn').onclick = async () => {
-    const email = document.getElementById('login-email').value.trim();
+const email = document.getElementById('login-email').value.trim();
     const pass = document.getElementById('login-pass').value;
-    if (!email || !pass) { showToast('Remplissez email et mot de passe','error'); return; }
-    const btn = document.getElementById('setup-btn');
-    btn.disabled = true; btn.textContent = 'Création...';
-    const res = await window.dataSdk.create({type:'user',email,password:pass,role:'admin',nom:'Admin',prenom:'Principal',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:generateRandomAvatar('A','P'),course_state_active:''});
-    if (res.isOk) showToast('Admin créé ! Connectez-vous.');
-    else showToast('Erreur','error');
-  };
-
-  document.getElementById('reset-btn').onclick = () => {
-    if (confirm('Cela supprimera toutes les données. Continuer ?')) {
-      localStorage.clear();
-      location.reload();
+    
+    if (!email || !pass) { 
+        showToast('Remplissez email et mot de passe','error'); 
+        return; 
     }
-  };
+    
+    const btn = document.getElementById('setup-btn');
+    btn.disabled = true; 
+    btn.textContent = 'Création...';
+    
+    // Création de l'admin
+    const res = await window.dataSdk.create({
+        type:'user',
+        email,
+        password:pass,
+        role:'admin',
+        nom:'Admin',
+        prenom:'Principal',
+        active:true,
+        en_service:false,
+        photo_profile:generateRandomAvatar('A','P')
+    });
+    
+    if (res.isOk) {
+        showToast('Admin créé sur le Cloud !');
+        // On attend 1 seconde pour laisser le Cloud respirer et on recharge
+        setTimeout(() => { location.reload(); }, 1000);
+    } else {
+        showToast('Erreur Cloud','error');
+        btn.disabled = false;
+        btn.textContent = 'Créer un admin';
+    }
+};
 }
 
 function adminLayout(app, c, activePage, contentHTML) {

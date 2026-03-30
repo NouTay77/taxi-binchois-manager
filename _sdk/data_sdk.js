@@ -4,17 +4,23 @@ window.dataSdk = {
 
   async init(dataHandler) {
     this.handler = dataHandler;
-    // On charge les données du Cloud dès l'ouverture de l'app
     try {
+      // 1. On va chercher les données sur Redis
       const res = await fetch('/api/sync-excel');
       if (res.ok) {
         const cloudData = await res.json();
-        if (Array.isArray(cloudData)) {
+        // Si le cloud a des données, on les utilise
+        if (Array.isArray(cloudData) && cloudData.length > 0) {
           this.data = cloudData;
+          localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
+        } else {
+          // Sinon on regarde dans le téléphone/PC (mémoire locale)
+          const saved = localStorage.getItem('dataSdk_data');
+          if (saved) this.data = JSON.parse(saved);
         }
       }
     } catch (e) {
-      console.log("Erreur Cloud, lecture du stockage local...");
+      console.log("Erreur Cloud, lecture locale...");
       const saved = localStorage.getItem('dataSdk_data');
       if (saved) this.data = JSON.parse(saved);
     }
@@ -24,29 +30,19 @@ window.dataSdk = {
   },
 
   async create(item) {
-    // On force 'active: true' pour que le chauffeur puisse se connecter
+    // On génère un ID unique pour que Redis ne s'emmêle pas les pinceaux
     const newItem = { ...item, __backendId: Date.now().toString(), active: true };
     this.data.push(newItem);
     await this.save();
     return { isOk: true };
   },
 
-  async update(item) {
-    const index = this.data.findIndex(d => d.__backendId === item.__backendId);
-    if (index !== -1) {
-      this.data[index] = { ...this.data[index], ...item };
-      await this.save();
-      return { isOk: true };
-    }
-    return { isOk: false };
-  },
-
   async save() {
-    // 1. Sauvegarde locale (pour la rapidité)
+    // 1. Sauvegarde locale immédiate
     localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
     if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
     
-    // 2. Envoi au Cloud Vercel (pour la synchronisation PC/Télephone)
+    // 2. Envoi au Cloud (Redis)
     try {
       await fetch('/api/sync-excel', {
         method: 'POST',
@@ -54,7 +50,7 @@ window.dataSdk = {
         body: JSON.stringify(this.data)
       });
     } catch (e) {
-      console.error("Échec de la synchronisation Cloud");
+      console.error("Échec de la sauvegarde Cloud");
     }
   }
 };
