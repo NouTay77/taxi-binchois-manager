@@ -1039,7 +1039,6 @@ document.getElementById('ch-save').onclick = async () => {
     const pass = document.getElementById('ch-pass').value;
     const role = document.getElementById('ch-role').value;
     const active = document.getElementById('ch-active').checked;
-    const photoUrl = document.getElementById('ch-photo').value.trim();
 
     if (!nom || !prenom || !email || !pass) {
       showToast('Remplissez tous les champs', 'error');
@@ -1050,50 +1049,41 @@ document.getElementById('ch-save').onclick = async () => {
     btn.disabled = true;
     btn.textContent = '...';
 
-    // On crée l'objet de base
-    const chauffeurData = {
-      type: 'user',
-      nom,
-      prenom,
-      email,
-      password: pass,
-      role,
-      active,
-      photo_profile: photoUrl || (editingCh ? editingCh.photo_profile : generateRandomAvatar(prenom, nom))
-    };
-
-    // Si on modifie, on garde les valeurs de service existantes
-    if (editingCh) {
-      chauffeurData.en_service = editingCh.en_service || false;
-      chauffeurData.vehicule_id = editingCh.vehicule_id || '';
-      chauffeurData.course_state_active = editingCh.course_state_active || '';
-    } else {
-      chauffeurData.en_service = false;
-    }
-
     try {
       let r;
       if (editingCh && editingCh.__backendId) {
-        // UPDATE : On envoie l'ID et les données propres
-        r = await window.dataSdk.update(editingCh.__backendId, chauffeurData);
+        // MODIFICATION
+        // On crée un objet propre SANS l'email si on ne veut pas le changer, 
+        // ou on l'envoie tel quel mais le SDK update a besoin de l'ID précis.
+        const updateData = {
+          nom,
+          prenom,
+          password: pass,
+          role,
+          active,
+          photo_profile: document.getElementById('ch-photo').value.trim() || editingCh.photo_profile
+        };
+
+        r = await window.dataSdk.update(editingCh.__backendId, updateData);
       } else {
-        // CREATE
-        r = await window.dataSdk.create(chauffeurData);
+        // CRÉATION
+        const newData = {
+          type: 'user', nom, prenom, email, password: pass,
+          role, active, en_service: false
+        };
+        r = await window.dataSdk.create(newData);
       }
 
       if (r.isOk) {
-        showToast(editingCh ? 'Chauffeur mis à jour' : 'Compte créé');
+        showToast('Enregistré !');
         form.classList.add('hidden');
         editingCh = null;
-        render(); // On rafraîchit l'affichage
-        await syncExcelFile('user');
+        render(); // Rafraîchit la liste
       } else {
-        // Si le serveur renvoie une erreur spécifique, on l'affiche
-        showToast('Erreur: ' + (r.error || 'Vérifiez les données'), 'error');
+        showToast('Erreur serveur', 'error');
       }
     } catch (err) {
-      console.error(err);
-      showToast('Erreur réseau', 'error');
+      showToast('Erreur de connexion', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Enregistrer';
