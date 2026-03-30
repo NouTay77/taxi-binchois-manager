@@ -1048,9 +1048,9 @@ document.getElementById('ch-save').onclick = async () => {
 
     const btn = document.getElementById('ch-save');
     btn.disabled = true;
-    btn.textContent = 'Patientez...';
+    btn.textContent = '...';
 
-    // On prépare l'objet avec SEULEMENT les champs nécessaires
+    // On crée l'objet de base
     const chauffeurData = {
       type: 'user',
       nom,
@@ -1059,38 +1059,41 @@ document.getElementById('ch-save').onclick = async () => {
       password: pass,
       role,
       active,
-      en_service: editingCh ? (editingCh.en_service || false) : false,
-      vehicule_id: editingCh ? (editingCh.vehicule_id || '') : '',
-      photo_profile: photoUrl || (editingCh ? editingCh.photo_profile : generateRandomAvatar(prenom, nom)),
-      course_state_active: editingCh ? (editingCh.course_state_active || '') : ''
+      photo_profile: photoUrl || (editingCh ? editingCh.photo_profile : generateRandomAvatar(prenom, nom))
     };
+
+    // Si on modifie, on garde les valeurs de service existantes
+    if (editingCh) {
+      chauffeurData.en_service = editingCh.en_service || false;
+      chauffeurData.vehicule_id = editingCh.vehicule_id || '';
+      chauffeurData.course_state_active = editingCh.course_state_active || '';
+    } else {
+      chauffeurData.en_service = false;
+    }
 
     try {
       let r;
       if (editingCh && editingCh.__backendId) {
-        // MODIFICATION : On utilise l'ID pour cibler le bon chauffeur
+        // UPDATE : On envoie l'ID et les données propres
         r = await window.dataSdk.update(editingCh.__backendId, chauffeurData);
       } else {
-        // CRÉATION : Nouveau chauffeur
+        // CREATE
         r = await window.dataSdk.create(chauffeurData);
       }
 
       if (r.isOk) {
-        showToast(editingCh ? 'Chauffeur mis à jour' : 'Chauffeur créé');
+        showToast(editingCh ? 'Chauffeur mis à jour' : 'Compte créé');
         form.classList.add('hidden');
-        editingCh = null; 
-        // On attend un petit peu que le cloud se mette à jour avant de rafraîchir
-        setTimeout(() => {
-            render(); 
-            syncExcelFile('user');
-        }, 500);
+        editingCh = null;
+        render(); // On rafraîchit l'affichage
+        await syncExcelFile('user');
       } else {
-        // Affiche l'erreur réelle renvoyée par le serveur
-        showToast('Erreur: ' + (r.error || 'Vérifiez l\'email'), 'error');
+        // Si le serveur renvoie une erreur spécifique, on l'affiche
+        showToast('Erreur: ' + (r.error || 'Vérifiez les données'), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('Erreur de connexion au serveur', 'error');
+      showToast('Erreur réseau', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Enregistrer';
