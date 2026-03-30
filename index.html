@@ -61,6 +61,7 @@ let APP = {
   editItem: null,
   serviceState: null,
   courseState: null,
+  courseEndData: null,
 };
 
 function getUsers() { return APP.allData.filter(d => d.type === 'user'); }
@@ -270,115 +271,67 @@ window.elementSdk.init({
   ])
 });
 
-function importData(type, file) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data, {type: 'array'});
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const json = XLSX.utils.sheet_to_json(worksheet);
-    const promises = json.map(row => {
-      const item = { type };
-      if (type === 'user') {
-        item.nom = row.Nom || row.nom || '';
-        item.prenom = row.Prenom || row.prenom || '';
-        item.email = row.Email || row.email || '';
-        item.password = row.Password || row.password || '123456';
-        item.role = 'chauffeur';
-        item.active = true;
-        item.en_service = false;
-        item.photo_profile = generateRandomAvatar(item.prenom, item.nom);
-      } else if (type === 'vehicule') {
-        item.immatriculation = row.Immatriculation || row.immatriculation || '';
-        item.marque = row.Marque || row.marque || '';
-        item.modele = row.Modele || row.modele || '';
-        item.statut_vehicule = 'libre';
-      } else if (type === 'course') {
-        item.chauffeur_nom = row['Chauffeur Nom'] || row.chauffeur_nom || '';
-        item.heure_prise_en_charge = row['Heure Prise en Charge'] || row.heure_prise_en_charge || '';
-        item.commune_prise_en_charge = row['Commune Prise en Charge'] || row.commune_prise_en_charge || '';
-        item.heure_fin_course = row['Heure Fin Course'] || row.heure_fin_course || '';
-        item.commune_fin_course = row['Commune Fin Course'] || row.commune_fin_course || '';
-        item.prix = row.Prix || row.prix || 0;
-        item.client_paye = (row['Client Paye'] || row.client_paye) === 'Oui' || true;
-        item.montant_impaye = row['Montant Impaye'] || row.montant_impaye || 0;
-      } else if (type === 'service_history') {
-        item.chauffeur_nom = row['Chauffeur Nom'] || row.chauffeur_nom || '';
-        item.date_debut_service = row['Date Debut Service'] || row.date_debut_service || '';
-        item.date_fin_service = row['Date Fin Service'] || row.date_fin_service || '';
-        item.km_debut = row['Km Debut'] || row.km_debut || 0;
-        item.km_fin = row['Km Fin'] || row.km_fin || 0;
-      }
-      return window.dataSdk.create(item);
-    });
-    Promise.all(promises).then(() => {
-      showToast('Import réussi', 'success');
-    }).catch(err => {
-      showToast('Erreur import: ' + err.message, 'error');
-    });
-  };
-  reader.readAsArrayBuffer(file);
-}
 
-async function syncFromUrl(type, url) {
+
+
+
+async function exportHistoriqueByEmail(type) {
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Fichier non trouvé');
-    const data = new Uint8Array(await response.arrayBuffer());
-    const workbook = XLSX.read(data, {type: 'array'});
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const json = XLSX.utils.sheet_to_json(worksheet);
-    // For sync, first delete existing of type
-    const existing = APP.allData.filter(d => d.type === type);
-    await Promise.all(existing.map(e => window.dataSdk.delete(e)));
-    // Then create new
-    const promises = json.map(row => {
-      const item = { type };
-      if (type === 'user') {
-        item.nom = row.Nom || row.nom || '';
-        item.prenom = row.Prenom || row.prenom || '';
-        item.email = row.Email || row.email || '';
-        item.password = row.Password || row.password || '123456';
-        item.role = 'chauffeur';
-        item.active = true;
-        item.en_service = false;
-        item.photo_profile = generateRandomAvatar(item.prenom, item.nom);
+    const data = APP.allData.filter(d => d.type === type);
+    const json = data.map(item => {
+      if (type === 'course') {
+        return {
+          'Chauffeur': item.chauffeur_nom || '',
+          'Prise en charge': item.heure_prise_en_charge || '',
+          'Commune départ': item.commune_prise_en_charge || '',
+          'Fin course': item.heure_fin_course || '',
+          'Commune arrivée': item.commune_fin_course || '',
+          'Prix': item.prix || 0,
+          'Payé': item.client_paye ? 'Oui' : 'Non',
+          'Montant impayé': item.montant_impaye || 0
+        };
+      } else if (type === 'service_history') {
+        return {
+          'Chauffeur': item.chauffeur_nom || '',
+          'Début service': item.date_debut_service || '',
+          'Fin service': item.date_fin_service || '',
+          'Km début': item.km_debut || 0,
+          'Km fin': item.km_fin || 0
+        };
       }
-      return window.dataSdk.create(item);
+      return item;
     });
-    await Promise.all(promises);
-    showToast('Synchronisation réussie', 'success');
-  } catch (err) {
-    showToast('Erreur sync: ' + err.message, 'error');
-  }
-}
-
-function exportToExcel(type, filename) {
-  const data = APP.allData.filter(d => d.type === type);
-  const json = data.map(item => {
-    if (type === 'user') {
-      return {
-        Nom: item.nom,
-        Prenom: item.prenom,
-        Email: item.email,
-        Password: item.password
-      };
-    } else if (type === 'vehicule') {
-      return {
-        Immatriculation: item.immatriculation,
-        Marque: item.marque,
-        Modele: item.modele
-      };
+    const worksheet = XLSX.utils.json_to_sheet(json);
+    const workbook = XLSX.utils.book_new();
+    const sheetName = type === 'course' ? 'Courses' : 'Services';
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    const wbout = XLSX.write(workbook, {booktype:'xlsx', type:'array'});
+    const blob = new Blob([wbout], {type: 'application/octet-stream'});
+    const base64 = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.readAsDataURL(blob);
+    });
+    const filename = type === 'course' ? 'Historique_Courses.xlsx' : 'Historique_Services.xlsx';
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        to: 'tayanenourrdine@gmail.com',
+        subject: type === 'course' ? 'Historique des courses' : 'Historique des services',
+        message: `Bonjour,\n\nVeuillez trouver en pièce jointe l'historique ${type === 'course' ? 'des courses' : 'des services'}.\n\nCordialement,\nTaxi Binchois Manager`,
+        attachmentName: filename,
+        attachmentBase64: base64
+      })
+    });
+    if (response.ok) {
+      showToast(`Export envoyé par mail avec succès`, 'success');
+    } else {
+      showToast(`Erreur lors de l'envoi: ${response.statusText}`, 'error');
     }
-    return item;
-  });
-  const worksheet = XLSX.utils.json_to_sheet(json);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, type === 'user' ? 'Chauffeurs' : 'Vehicules');
-  XLSX.writeFile(workbook, filename);
-  showToast('Export réussi', 'success');
+  } catch (err) {
+    showToast('Erreur export: ' + err.message, 'error');
+  }
 }
 
 function cfg(key) {
@@ -443,6 +396,10 @@ function renderLogin(app, c) {
           </button>
           <p id="login-error" class="mt-3 text-red-400 text-sm text-center hidden"></p>
           <p class="mt-4 text-xs text-center opacity-50">Créer un compte admin</p>
+          <button id="show-signup-btn" class="mt-4 w-full py-2 rounded-xl text-sm font-medium transition hover:opacity-80" style="background:${c.secondary};color:${c.text}">
+            S'inscrire (Chauffeur)
+          </button>
+          <p class="mt-6 text-xs text-center opacity-50">Configuration initiale</p>
           <button id="setup-btn" class="mt-2 w-full py-2 rounded-xl text-sm font-medium transition hover:opacity-80" style="background:${c.secondary};color:${c.text}">
             Créer un admin
           </button>
@@ -814,30 +771,21 @@ function renderAdminDashboard(app, c) {
         }</div>`}
     </div>
     <div class="rounded-2xl p-5" style="background:${c.surface};border:1px solid ${c.secondary}">
-      <h2 class="font-semibold text-lg mb-4">Importer des données</h2>
+      <h2 class="font-semibold text-lg mb-4">Gestion des données</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium mb-2">Chauffeurs (Excel)</label>
-          <input type="file" id="import-chauffeurs" accept=".xlsx,.xls" class="w-full px-3 py-2 rounded-lg" style="background:${c.bg};border:1px solid ${c.secondary}">
-          <button onclick="importData('user', document.getElementById('import-chauffeurs').files[0])" class="mt-2 px-4 py-2 rounded-lg font-semibold" style="background:${c.primary};color:${c.bg}">Importer</button>
-          <button onclick="syncFromUrl('user', '/Nouveau%20Feuille%20de%20calcul%20Microsoft%20Excel.xlsx')" class="mt-2 px-4 py-2 rounded-lg font-semibold" style="background:#10B981;color:#FFFFFF">Synchroniser</button>
-          <button onclick="exportToExcel('user', 'Chauffeurs.xlsx')" class="mt-2 px-4 py-2 rounded-lg font-semibold" style="background:#F59E0B;color:#FFFFFF">Exporter</button>
+          <label class="block text-sm font-medium mb-2">Historique courses</label>
+          <p class="text-xs opacity-60 mb-3">Exporter et envoyer par mail</p>
+          <button onclick="exportHistoriqueByEmail('course')" class="w-full px-4 py-2 rounded-lg font-semibold transition hover:opacity-90" style="background:#10B981;color:#FFFFFF">
+            <i data-lucide="mail" style="width:16px;height:16px;display:inline;margin-right:8px"></i>Exporter par mail
+          </button>
         </div>
         <div>
-          <label class="block text-sm font-medium mb-2">Véhicules (Excel)</label>
-          <input type="file" id="import-vehicules" accept=".xlsx,.xls" class="w-full px-3 py-2 rounded-lg" style="background:${c.bg};border:1px solid ${c.secondary}">
-          <button onclick="importData('vehicule', document.getElementById('import-vehicules').files[0])" class="mt-2 px-4 py-2 rounded-lg font-semibold" style="background:${c.primary};color:${c.bg}">Importer</button>
-          <button onclick="exportToExcel('vehicule', 'Vehicules.xlsx')" class="mt-2 px-4 py-2 rounded-lg font-semibold" style="background:#F59E0B;color:#FFFFFF">Exporter</button>
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-2">Historique courses (Excel)</label>
-          <input type="file" id="import-courses" accept=".xlsx,.xls" class="w-full px-3 py-2 rounded-lg" style="background:${c.bg};border:1px solid ${c.secondary}">
-          <button onclick="importData('course', document.getElementById('import-courses').files[0])" class="mt-2 px-4 py-2 rounded-lg font-semibold" style="background:${c.primary};color:${c.bg}">Importer</button>
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-2">Historique services (Excel)</label>
-          <input type="file" id="import-services" accept=".xlsx,.xls" class="w-full px-3 py-2 rounded-lg" style="background:${c.bg};border:1px solid ${c.secondary}">
-          <button onclick="importData('service_history', document.getElementById('import-services').files[0])" class="mt-2 px-4 py-2 rounded-lg font-semibold" style="background:${c.primary};color:${c.bg}">Importer</button>
+          <label class="block text-sm font-medium mb-2">Historique services</label>
+          <p class="text-xs opacity-60 mb-3">Exporter et envoyer par mail</p>
+          <button onclick="exportHistoriqueByEmail('service_history')" class="w-full px-4 py-2 rounded-lg font-semibold transition hover:opacity-90" style="background:#10B981;color:#FFFFFF">
+            <i data-lucide="mail" style="width:16px;height:16px;display:inline;margin-right:8px"></i>Exporter par mail
+          </button>
         </div>
       </div>
     </div>
@@ -935,7 +883,7 @@ function renderAdminVehicules(app, c) {
     } else {
       if(APP.allData.length >= 999) { showToast('Limite de données atteinte','error'); btn.disabled=false; btn.textContent='Enregistrer'; return; }
       const r = await window.dataSdk.create({type:'vehicule',immatriculation:immat,marque,modele,statut_vehicule:'libre',email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''});
-      if(r.isOk) { showToast('Véhicule ajouté'); exportToExcel('vehicule', 'Vehicules.xlsx'); } else showToast('Erreur','error');
+      if(r.isOk) { showToast('Véhicule ajouté'); } else showToast('Erreur','error');
     }
   };
 }
@@ -1109,7 +1057,7 @@ function renderAdminChauffeurs(app, c) {
     } else {
       if(APP.allData.length>=999){showToast('Limite atteinte','error');btn.disabled=false;btn.textContent='Enregistrer';return;}
       const r=await window.dataSdk.create({type:'user',nom,prenom,email,password:pass,role,active,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:photoProfile,course_state_active:''});
-      if(r.isOk) { showToast('Compte créé'); exportToExcel('user', 'Chauffeurs.xlsx'); } else showToast('Erreur','error');
+      if(r.isOk) { showToast('Compte créé'); } else showToast('Erreur','error');
     }
   };
 }
@@ -1644,7 +1592,7 @@ function renderChauffeurMain(app, c) {
     };
   }
 
-      const endBtn = document.getElementById('end-course-btn');
+  const endBtn = document.getElementById('end-course-btn');
   if (endBtn) {
     endBtn.onclick = async () => {
       endBtn.disabled=true; endBtn.textContent='Localisation...';
@@ -1653,6 +1601,7 @@ function renderChauffeurMain(app, c) {
         if (navigator.geolocation) {
           commune = await getCommune();
         }
+        commune = await getCommune();
       } catch(e) {
         console.log('Géolocalisation non disponible, utilisation de "Inconnue"');
       }
@@ -1661,6 +1610,7 @@ function renderChauffeurMain(app, c) {
       document.getElementById('price-popup').classList.remove('hidden');
       endBtn.disabled=false; endBtn.innerHTML='<i data-lucide="flag" style="width:22px;height:22px"></i> Terminer la course';
       document.getElementById('course-price').addEventListener('keypress', (e) => { if(e.key==='Enter') document.getElementById('save-course-btn').click(); });
+      document.getElementById('course-price').onkeypress = (e) => { if(e.key==='Enter') document.getElementById('save-course-btn').click(); };
       document.getElementById('course-price').focus();
       lucide.createIcons();
     };
@@ -1691,7 +1641,7 @@ function renderChauffeurMain(app, c) {
     }
   });
 
-      const saveBtn = document.getElementById('save-course-btn');
+  const saveBtn = document.getElementById('save-course-btn');
   if (saveBtn) {
     saveBtn.onclick = async () => {
       const prix = parseFloat(document.getElementById('course-price').value);

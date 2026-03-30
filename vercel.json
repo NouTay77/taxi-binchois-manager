@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm install",
+  "framework": "html",
+  "public": true,
+  "regions": ["cdg1"],
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 512,
+      "maxDuration": 30
+    }
+  }
+}
