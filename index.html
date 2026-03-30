@@ -334,6 +334,67 @@ async function exportHistoriqueByEmail(type) {
   }
 }
 
+async function syncExcelFile(type) {
+  try {
+    const data = type === 'user' 
+      ? APP.allData.filter(d => d.type === 'user' && d.role === 'chauffeur')
+      : APP.allData.filter(d => d.type === 'vehicule');
+    
+    const response = await fetch('/api/sync-excel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ type, data })
+    });
+    
+    if (response.ok) {
+      console.log(`Fichier ${type === 'user' ? 'Chauffeurs' : 'Vehicules'}.xlsx synchronisé`);
+    } else {
+      console.error('Erreur sync Excel:', response.statusText);
+    }
+  } catch (err) {
+    console.error('Erreur sync:', err);
+  }
+}
+
+async function sendDailyRecap(chauffeurName, chauffeurEmail, adminEmail) {
+  try {
+    const coursesOfDay = APP.allData.filter(d => 
+      d.type === 'course' && 
+      d.chauffeur_nom === chauffeurName &&
+      new Date(d.heure_prise_en_charge || 0).toDateString() === new Date().toDateString()
+    );
+    
+    const totalRecette = coursesOfDay.reduce((sum, c) => sum + (c.client_paye ? (c.prix || 0) : 0), 0);
+    const nbCourses = coursesOfDay.length;
+    
+    if (nbCourses === 0) {
+      return;
+    }
+    
+    const response = await fetch('/api/send-daily-recap', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        chauffeurName,
+        chauffeurEmail,
+        adminEmail,
+        totalRecette,
+        nbCourses,
+        courses: coursesOfDay,
+        date: new Date().toLocaleDateString('fr-BE')
+      })
+    });
+    
+    if (response.ok) {
+      console.log('Récapitulatif journalier envoyé');
+    } else {
+      console.error('Erreur envoi récap:', response.statusText);
+    }
+  } catch (err) {
+    console.error('Erreur récap:', err);
+  }
+}
+
 function cfg(key) {
   return (window.elementSdk?.config?.[key]) || defaultConfig[key];
 }
@@ -467,17 +528,24 @@ function renderLogin(app, c) {
     // Envoyer un log de connexion à l'admin
     if (user.role === 'chauffeur' && APP.allData.length < 999) {
       const admins = getUsers().filter(a => a.role === 'admin');
+      const userName = ((user.prenom || '') + ' ' + (user.nom || '')).trim() || 'Chauffeur';
+      const message = userName + ' s\'est connecté';
+      
       admins.forEach(async (admin) => {
-        await window.dataSdk.create({
-          type: 'notification',
-          notification_id: uid(),
-          notification_from: user.prenom + ' ' + user.nom,
-          notification_to: admin.__backendId,
-          notification_message: user.prenom + ' ' + user.nom + ' s\'est connecté',
-          notification_timestamp: new Date().toISOString(),
-          notification_read: false,
-          email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
-        });
+        try {
+          await window.dataSdk.create({
+            type: 'notification',
+            notification_id: uid(),
+            notification_from: userName,
+            notification_to: admin.__backendId,
+            notification_message: message,
+            notification_timestamp: new Date().toISOString(),
+            notification_read: false,
+            email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
+          });
+        } catch (err) {
+          console.error('Erreur notification connexion:', err);
+        }
       });
     }
     render();
@@ -583,6 +651,7 @@ function renderLogin(app, c) {
       
       if (res.isOk) {
         showToast('Compte créé ! Connectez-vous.');
+        await syncExcelFile('user');
         document.getElementById('signup-nom').value = '';
         document.getElementById('signup-prenom').value = '';
         document.getElementById('signup-email').value = '';
@@ -660,21 +729,34 @@ function adminLayout(app, c, activePage, contentHTML) {
     btn.onclick = () => { APP.currentPage = btn.dataset.page; render(); };
   });
   const logout = () => {
-    // Envoyer une notification de déconnexion
+    // Envoyer une notification de déconnexion et le récapitulatif journalier
     if (APP.currentUser && APP.currentUser.role === 'chauffeur' && APP.allData.length < 999) {
       const admins = getUsers().filter(a => a.role === 'admin');
+      const chauffeurName = (APP.currentUser.prenom || '') + ' ' + (APP.currentUser.nom || '');
+      const message = (chauffeurName.trim() || 'Chauffeur') + ' s\'est déconnecté';
+      
       admins.forEach(async (admin) => {
-        await window.dataSdk.create({
-          type: 'notification',
-          notification_id: uid(),
-          notification_from: APP.currentUser.prenom + ' ' + APP.currentUser.nom,
-          notification_to: admin.__backendId,
-          notification_message: APP.currentUser.prenom + ' ' + APP.currentUser.nom + ' s\'est déconnecté',
-          notification_timestamp: new Date().toISOString(),
-          notification_read: false,
-          email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
-        });
+        try {
+          await window.dataSdk.create({
+            type: 'notification',
+            notification_id: uid(),
+            notification_from: chauffeurName.trim() || 'Utilisateur',
+            notification_to: admin.__backendId,
+            notification_message: message,
+            notification_timestamp: new Date().toISOString(),
+            notification_read: false,
+            email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
+          });
+        } catch (err) {
+          console.error('Erreur envoi notification:', err);
+        }
       });
+      
+      // Envoyer le récapitulatif journalier
+      if (admins.length > 0) {
+        const chauffeurEmail = APP.currentUser.email;
+        await sendDailyRecap(chauffeurName.trim() || 'Chauffeur', chauffeurEmail, admins[0].email);
+      }
     }
     APP.currentUser=null; APP.currentPage='login'; APP.serviceState=null; APP.courseState=null; render();
   };
@@ -879,12 +961,13 @@ function renderAdminVehicules(app, c) {
     if(editingV) {
       const updated = {...editingV, immatriculation:immat, marque, modele};
       const r = await window.dataSdk.update(updated);
-      if(r.isOk) showToast('Véhicule modifié'); else showToast('Erreur','error');
+      if(r.isOk) { showToast('Véhicule modifié'); await syncExcelFile('vehicule'); } else showToast('Erreur','error');
     } else {
       if(APP.allData.length >= 999) { showToast('Limite de données atteinte','error'); btn.disabled=false; btn.textContent='Enregistrer'; return; }
       const r = await window.dataSdk.create({type:'vehicule',immatriculation:immat,marque,modele,statut_vehicule:'libre',email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''});
-      if(r.isOk) { showToast('Véhicule ajouté'); } else showToast('Erreur','error');
+      if(r.isOk) { showToast('Véhicule ajouté'); await syncExcelFile('vehicule'); } else showToast('Erreur','error');
     }
+    btn.disabled=false; btn.textContent='Enregistrer';
   };
 }
 
@@ -985,28 +1068,55 @@ function renderAdminChauffeurs(app, c) {
 
   document.getElementById('send-notif-btn').onclick = async () => {
     const msg = document.getElementById('notif-message').value.trim();
-    if (!msg) { showToast('Le message ne peut pas être vide','error'); return; }
-    if (!notifTarget) return;
+    
+    // Validation complète du message
+    if (!msg || msg.length === 0) { 
+      showToast('Veuillez entrer un message','error'); 
+      return; 
+    }
+    if (msg.length > 500) {
+      showToast('Le message ne doit pas dépasser 500 caractères','error');
+      return;
+    }
+    if (!notifTarget) {
+      showToast('Sélectionnez un destinataire','error');
+      return;
+    }
+    
     document.getElementById('send-notif-btn').disabled = true;
     document.getElementById('send-notif-btn').textContent = 'Envoi...';
-    if(APP.allData.length >= 999) { showToast('Limite de données atteinte','error'); document.getElementById('send-notif-btn').disabled = false; document.getElementById('send-notif-btn').textContent = 'Envoyer'; return; }
-    const r = await window.dataSdk.create({
-      type: 'notification',
-      notification_id: uid(),
-      notification_from: APP.currentUser.prenom + ' ' + APP.currentUser.nom + ' (Admin)',
-      notification_to: notifTarget.__backendId,
-      notification_message: msg,
-      notification_timestamp: new Date().toISOString(),
-      notification_read: false,
-      email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
-    });
-    if (r.isOk) {
-      showToast('Message envoyé à ' + notifTarget.prenom);
-      notifPopup.classList.add('hidden');
-      notifTarget = null;
-    } else {
-      showToast('Erreur lors de l\'envoi','error');
+    
+    if(APP.allData.length >= 999) { 
+      showToast('Limite de données atteinte','error'); 
+      document.getElementById('send-notif-btn').disabled = false; 
+      document.getElementById('send-notif-btn').textContent = 'Envoyer'; 
+      return; 
     }
+    
+    try {
+      const r = await window.dataSdk.create({
+        type: 'notification',
+        notification_id: uid(),
+        notification_from: APP.currentUser.prenom + ' ' + APP.currentUser.nom + ' (Admin)',
+        notification_to: notifTarget.__backendId,
+        notification_message: msg || 'Message envoyé',
+        notification_timestamp: new Date().toISOString(),
+        notification_read: false,
+        email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
+      });
+      
+      if (r.isOk) {
+        showToast('Message envoyé à ' + notifTarget.prenom);
+        notifPopup.classList.add('hidden');
+        document.getElementById('notif-message').value = '';
+        notifTarget = null;
+      } else {
+        showToast('Erreur: ' + (r.error || 'Impossible d\'envoyer le message'),'error');
+      }
+    } catch (err) {
+      showToast('Erreur lors de l\'envoi: ' + err.message,'error');
+    }
+    
     document.getElementById('send-notif-btn').disabled = false;
     document.getElementById('send-notif-btn').textContent = 'Envoyer';
   };
@@ -1053,12 +1163,13 @@ function renderAdminChauffeurs(app, c) {
     if(photoUrl) photoProfile = photoUrl;
     if(editingCh){
       const r=await window.dataSdk.update({...editingCh,nom,prenom,email,password:pass,role,active,photo_profile:photoProfile});
-      if(r.isOk) showToast('Modifié'); else showToast('Erreur','error');
+      if(r.isOk) { showToast('Modifié'); await syncExcelFile('user'); } else showToast('Erreur','error');
     } else {
       if(APP.allData.length>=999){showToast('Limite atteinte','error');btn.disabled=false;btn.textContent='Enregistrer';return;}
       const r=await window.dataSdk.create({type:'user',nom,prenom,email,password:pass,role,active,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:photoProfile,course_state_active:''});
-      if(r.isOk) { showToast('Compte créé'); } else showToast('Erreur','error');
+      if(r.isOk) { showToast('Compte créé'); await syncExcelFile('user'); } else showToast('Erreur','error');
     }
+    btn.disabled=false; btn.textContent='Enregistrer';
   };
 }
 

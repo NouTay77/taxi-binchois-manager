@@ -12,27 +12,37 @@ export default async function handler(
   }
 
   try {
-    const { to, subject, message, attachmentName, attachmentBase64 } = req.body;
+    const { to, subject, message, attachmentName, attachmentBase64, htmlContent } = req.body;
 
-    if (!to || !subject || !message) {
+    if (!to || !subject || (!message && !htmlContent)) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Convert base64 to buffer
-    const buffer = Buffer.from(attachmentBase64.split(',')[1] || attachmentBase64, 'base64');
-
-    const response = await resend.emails.send({
+    let emailOptions: any = {
       from: 'onboarding@resend.dev',
       to: to,
       subject: subject,
-      html: `<p>${message.replace(/\n/g, '<br>')}</p>`,
-      attachments: [
+    };
+
+    // Support both plain text and HTML content
+    if (htmlContent) {
+      emailOptions.html = htmlContent;
+    } else {
+      emailOptions.html = `<p>${message.replace(/\n/g, '<br>')}</p>`;
+    }
+
+    // Add attachment if provided
+    if (attachmentName && attachmentBase64) {
+      const buffer = Buffer.from(attachmentBase64.split(',')[1] || attachmentBase64, 'base64');
+      emailOptions.attachments = [
         {
           filename: attachmentName,
           content: buffer,
         },
-      ],
-    });
+      ];
+    }
+
+    const response = await resend.emails.send(emailOptions);
 
     return res.status(200).json({ success: true, messageId: response.data?.id });
   } catch (error) {
