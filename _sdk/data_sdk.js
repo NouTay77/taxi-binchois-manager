@@ -4,55 +4,40 @@ window.dataSdk = {
 
   async init(dataHandler) {
     this.handler = dataHandler;
-    // On charge d'abord ce qu'on a sous la main (Local)
-    const saved = localStorage.getItem('dataSdk_data');
-    if (saved) {
-      this.data = JSON.parse(saved);
-      if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
-    }
-    // Puis on tente la synchro
-    await this.loadFromServer();
-    return { isOk: true };
-  },
-
-  async loadFromServer() {
     try {
-      // On force un POST avec une commande "read" si le GET est interdit
-      const res = await fetch('/api/sync-excel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'read' }) 
-      });
+      // On charge les chauffeurs depuis le Cloud au démarrage
+      const res = await fetch('/api/sync-excel');
       if (res.ok) {
-        const serverData = await res.json();
-        if (Array.isArray(serverData)) {
-          this.data = serverData;
-          localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
-          if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
-        }
+        this.data = await res.json();
       }
-    } catch (e) { console.error("Synchro impossible"); }
+    } catch (e) {
+      console.log("Erreur Cloud, lecture locale...");
+    }
+    if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
+    return { isOk: true };
   },
 
   async create(item) {
     const newItem = { ...item, __backendId: Date.now().toString(), active: true };
     this.data.push(newItem);
-    return await this.save();
+    await this.save();
+    return { isOk: true };
   },
 
   async save() {
+    // Sauvegarde sur le téléphone/PC actuel
     localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
     if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
     
+    // Envoi immédiat au Cloud pour que tous les autres appareils voient le changement
     try {
-      const res = await fetch('/api/sync-excel', {
+      await fetch('/api/sync-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(this.data) // On envoie toute la liste
+        body: JSON.stringify(this.data)
       });
-      return { isOk: res.ok };
     } catch (e) {
-      return { isOk: true }; // On ne bloque pas l'utilisateur si le réseau flanche
+      console.error("Synchro Cloud échouée");
     }
   }
 };
