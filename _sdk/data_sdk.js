@@ -4,32 +4,49 @@ window.dataSdk = {
 
   async init(dataHandler) {
     this.handler = dataHandler;
+    // On charge les données du Cloud dès l'ouverture de l'app
     try {
-      // On charge les chauffeurs depuis le Cloud au démarrage
       const res = await fetch('/api/sync-excel');
       if (res.ok) {
-        this.data = await res.json();
+        const cloudData = await res.json();
+        if (Array.isArray(cloudData)) {
+          this.data = cloudData;
+        }
       }
     } catch (e) {
-      console.log("Erreur Cloud, lecture locale...");
+      console.log("Erreur Cloud, lecture du stockage local...");
+      const saved = localStorage.getItem('dataSdk_data');
+      if (saved) this.data = JSON.parse(saved);
     }
+    
     if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
     return { isOk: true };
   },
 
   async create(item) {
+    // On force 'active: true' pour que le chauffeur puisse se connecter
     const newItem = { ...item, __backendId: Date.now().toString(), active: true };
     this.data.push(newItem);
     await this.save();
     return { isOk: true };
   },
 
+  async update(item) {
+    const index = this.data.findIndex(d => d.__backendId === item.__backendId);
+    if (index !== -1) {
+      this.data[index] = { ...this.data[index], ...item };
+      await this.save();
+      return { isOk: true };
+    }
+    return { isOk: false };
+  },
+
   async save() {
-    // Sauvegarde sur le téléphone/PC actuel
+    // 1. Sauvegarde locale (pour la rapidité)
     localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
     if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
     
-    // Envoi immédiat au Cloud pour que tous les autres appareils voient le changement
+    // 2. Envoi au Cloud Vercel (pour la synchronisation PC/Télephone)
     try {
       await fetch('/api/sync-excel', {
         method: 'POST',
@@ -37,7 +54,7 @@ window.dataSdk = {
         body: JSON.stringify(this.data)
       });
     } catch (e) {
-      console.error("Synchro Cloud échouée");
+      console.error("Échec de la synchronisation Cloud");
     }
   }
 };
