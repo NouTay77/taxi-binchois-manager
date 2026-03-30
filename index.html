@@ -463,10 +463,6 @@ function renderLogin(app, c) {
           <p class="mt-6 text-xs text-center opacity-50">Configuration initiale</p>
           <button id="setup-btn" class="mt-2 w-full py-2 rounded-xl text-sm font-medium transition hover:opacity-80" style="background:${c.secondary};color:${c.text}" ${getUsers().filter(u => u.role === 'admin').length > 0 ? 'hidden' : ''}>
             Créer un admin
-          </button>
-          <button id="reset-btn" class="mt-2 w-full py-2 rounded-xl text-sm font-medium transition hover:opacity-80" style="background:#EF4444;color:#FFFFFF">
-            Réinitialiser les données
-          </button>
         </div>
 
       </div>
@@ -1036,27 +1032,67 @@ function renderAdminChauffeurs(app, c) {
     };
   });
 
-  document.getElementById('ch-save').onclick = async () => {
-    const nom=document.getElementById('ch-nom').value.trim();
-    const prenom=document.getElementById('ch-prenom').value.trim();
-    const email=document.getElementById('ch-email').value.trim();
-    const pass=document.getElementById('ch-pass').value;
-    const role=document.getElementById('ch-role').value;
-    const active=document.getElementById('ch-active').checked;
-    const photoUrl=document.getElementById('ch-photo').value.trim();
-    if(!nom||!prenom||!email||!pass){showToast('Remplissez tous les champs','error');return;}
-    const btn=document.getElementById('ch-save'); btn.disabled=true; btn.textContent='...';
-    let photoProfile = generateRandomAvatar(prenom, nom);
-    if(photoUrl) photoProfile = photoUrl;
-    if(editingCh){
-      const r=await window.dataSdk.update({...editingCh,nom,prenom,email,password:pass,role,active,photo_profile:photoProfile});
-      if(r.isOk) { showToast('Modifié'); await syncExcelFile('user'); } else showToast('Erreur','error');
-    } else {
-      if(APP.allData.length>=999){showToast('Limite atteinte','error');btn.disabled=false;btn.textContent='Enregistrer';return;}
-      const r=await window.dataSdk.create({type:'user',nom,prenom,email,password:pass,role,active,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:photoProfile,course_state_active:''});
-      if(r.isOk) { showToast('Compte créé'); await syncExcelFile('user'); } else showToast('Erreur','error');
+ document.getElementById('ch-save').onclick = async () => {
+    const nom = document.getElementById('ch-nom').value.trim();
+    const prenom = document.getElementById('ch-prenom').value.trim();
+    const email = document.getElementById('ch-email').value.trim();
+    const pass = document.getElementById('ch-pass').value;
+    const role = document.getElementById('ch-role').value;
+    const active = document.getElementById('ch-active').checked;
+    const photoUrl = document.getElementById('ch-photo').value.trim();
+
+    if (!nom || !prenom || !email || !pass) {
+      showToast('Remplissez tous les champs', 'error');
+      return;
     }
-    btn.disabled=false; btn.textContent='Enregistrer';
+
+    const btn = document.getElementById('ch-save');
+    btn.disabled = true;
+    btn.textContent = 'Enregistrement...';
+
+    // Logique pour la photo
+    let photoProfile = photoUrl || (editingCh ? editingCh.photo_profile : generateRandomAvatar(prenom, nom));
+
+    try {
+      if (editingCh) {
+        // MISE À JOUR
+        const r = await window.dataSdk.update(editingCh.__backendId, {
+          ...editingCh,
+          nom, prenom, email, password: pass,
+          role, active, photo_profile: photoProfile
+        });
+        if (r.isOk) {
+          showToast('Chauffeur mis à jour');
+          form.classList.add('hidden'); // Ferme le formulaire
+          await syncExcelFile('user');
+        } else {
+          showToast('Erreur modification', 'error');
+        }
+      } else {
+        // CRÉATION
+        if (APP.allData.length >= 999) {
+          showToast('Limite atteinte', 'error');
+          btn.disabled = false; return;
+        }
+        const r = await window.dataSdk.create({
+          type: 'user', nom, prenom, email, password: pass,
+          role, active, en_service: false, photo_profile: photoProfile
+        });
+        if (r.isOk) {
+          showToast('Compte créé');
+          form.classList.add('hidden'); // Ferme le formulaire
+          await syncExcelFile('user');
+        } else {
+          showToast('Erreur création (Email déjà utilisé ?)', 'error');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Erreur serveur', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enregistrer';
+    }
   };
 }
 
