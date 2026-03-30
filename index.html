@@ -12,6 +12,42 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Playfair+Display:wght@700;800&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="favicon.png">
   <script>
+    // Gestionnaire global pour les erreurs non capturées
+    window.addEventListener('error', (event) => {
+      console.error('Erreur globale:', event.error);
+      const app = document.getElementById('app');
+      if (app) {
+        app.innerHTML = `
+          <div class="h-full w-full flex items-center justify-center p-4 bg-red-900">
+            <div class="text-center">
+              <h1 class="text-2xl font-bold text-white mb-4">Erreur</h1>
+              <p class="text-white mb-4 text-sm">${(event.error && event.error.message) || event.message || 'Erreur inconnue'}</p>
+              <button onclick="location.reload()" class="px-4 py-2 bg-white text-red-900 font-semibold rounded">Recharger</button>
+            </div>
+          </div>
+        `;
+      }
+    });
+    
+    // Gestionnaire pour les promesses rejetées non gérées
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('Promesse rejetée non gérée:', event.reason);
+      event.preventDefault();
+      const app = document.getElementById('app');
+      if (app) {
+        app.innerHTML = `
+          <div class="h-full w-full flex items-center justify-center p-4 bg-red-900">
+            <div class="text-center">
+              <h1 class="text-2xl font-bold text-white mb-4">Erreur</h1>
+              <p class="text-white mb-4 text-sm">${(event.reason && event.reason.message) || event.reason || 'Erreur inconnue'}</p>
+              <button onclick="location.reload()" class="px-4 py-2 bg-white text-red-900 font-semibold rounded">Recharger</button>
+            </div>
+          </div>
+        `;
+      }
+    });
+  </script>
+  <script>
     tailwind.config = {
       theme: {
         extend: {
@@ -41,7 +77,13 @@
   <style>body { box-sizing: border-box; }</style>
  </head>
  <body class="h-full bg-night-900 text-white overflow-auto">
-  <div id="app" class="h-full w-full"></div>
+  <div id="app" class="h-full w-full">
+    <div class="h-full w-full flex items-center justify-center bg-night-900">
+      <div class="text-center">
+        <p class="text-white opacity-60 animate-pulse">Chargement en cours...</p>
+      </div>
+    </div>
+  </div>
   <script>
 const defaultConfig = {
   app_title: 'MyTaxi Binchois',
@@ -240,23 +282,52 @@ const dataHandler = {
 };
 
 async function initApp() {
-console.log('Initialisation du SDK données...');
-  const r = await window.dataSdk.init(dataHandler);
+  console.log('Initialisation du SDK données...');
+  try {
+    const r = await window.dataSdk.init(dataHandler);
+    
+    if (r.isOk) {
+      console.log('SDK données initialisé avec succès');
+    } else {
+      console.error('Erreur init SDK:', r.error);
+    }
+  } catch (err) {
+    console.error('Exception lors de initApp:', err);
+  }
   
-  if (r.isOk) {
-    console.log('SDK données initialisé avec succès');
-    // On force un premier rendu pour masquer le bouton "Créer Admin" 
-    // si des données sont arrivées du Cloud
-    render(); 
-  } else {
-    showToast('Erreur de connexion au Cloud','error');
+  // TOUJOURS faire le rendu initial, même s'il y a une erreur
+  try {
+    render();
+  } catch (renderErr) {
+    console.error('Erreur rendering initial:', renderErr);
+    document.getElementById('app').innerHTML = `
+      <div class="h-full w-full flex items-center justify-center p-4 bg-red-900">
+        <div class="text-center">
+          <h1 class="text-2xl font-bold text-white mb-4">Erreur au démarrage</h1>
+          <p class="text-white mb-4">${renderErr.message || 'Une erreur inconnue est survenue'}</p>
+          <button onclick="location.reload()" class="px-4 py-2 bg-white text-red-900 font-semibold rounded">Recharger</button>
+        </div>
+      </div>
+    `;
   }
 }
-initApp();
+
+// Attendre que le DOM soit prêt avant d'initialiser
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 window.elementSdk.init({
   defaultConfig,
-  onConfigChange: async (config) => { render(); },
+  onConfigChange: async (config) => { 
+    try {
+      render();
+    } catch (err) {
+      console.error('Erreur render onConfigChange:', err);
+    }
+  },
   mapToCapabilities: (config) => ({
     recolorables: [
       { get:()=>config.bg_color||defaultConfig.bg_color, set:v=>{config.bg_color=v;window.elementSdk.setConfig({bg_color:v})} },
@@ -427,30 +498,49 @@ function cfg(key) {
 }
 
 function render() {
-  const app = document.getElementById('app');
-  if (!app) return;
+  try {
+    const app = document.getElementById('app');
+    if (!app) {
+      console.error('Element #app not found!');
+      return;
+    }
 
-  const bg = cfg('bg_color');
-  const surface = cfg('surface_color');
-  const text = cfg('text_color');
-  const primary = cfg('primary_color');
-  const secondary = cfg('secondary_color');
+    const bg = cfg('bg_color');
+    const surface = cfg('surface_color');
+    const text = cfg('text_color');
+    const primary = cfg('primary_color');
+    const secondary = cfg('secondary_color');
 
-  document.body.style.background = bg;
-  document.body.style.color = text;
+    document.body.style.background = bg;
+    document.body.style.color = text;
 
-  switch(APP.currentPage) {
-    case 'login': renderLogin(app, {bg,surface,text,primary,secondary}); break;
-    case 'admin-dashboard': renderAdminDashboard(app, {bg,surface,text,primary,secondary}); break;
-    case 'admin-vehicules': renderAdminVehicules(app, {bg,surface,text,primary,secondary}); break;
-    case 'admin-chauffeurs': renderAdminChauffeurs(app, {bg,surface,text,primary,secondary}); break;
-    case 'admin-services': renderAdminServices(app, {bg,surface,text,primary,secondary}); break;
-    case 'admin-historique': renderAdminHistorique(app, {bg,surface,text,primary,secondary}); break;
-    case 'chauffeur-main': renderChauffeurMain(app, {bg,surface,text,primary,secondary}); break;
-    case 'admin-as-chauffeur': renderChauffeurMain(app, {bg,surface,text,primary,secondary}); break;
-    default: renderLogin(app, {bg,surface,text,primary,secondary});
+    switch(APP.currentPage) {
+      case 'login': renderLogin(app, {bg,surface,text,primary,secondary}); break;
+      case 'admin-dashboard': renderAdminDashboard(app, {bg,surface,text,primary,secondary}); break;
+      case 'admin-vehicules': renderAdminVehicules(app, {bg,surface,text,primary,secondary}); break;
+      case 'admin-chauffeurs': renderAdminChauffeurs(app, {bg,surface,text,primary,secondary}); break;
+      case 'admin-services': renderAdminServices(app, {bg,surface,text,primary,secondary}); break;
+      case 'admin-historique': renderAdminHistorique(app, {bg,surface,text,primary,secondary}); break;
+      case 'chauffeur-main': renderChauffeurMain(app, {bg,surface,text,primary,secondary}); break;
+      case 'admin-as-chauffeur': renderChauffeurMain(app, {bg,surface,text,primary,secondary}); break;
+      default: renderLogin(app, {bg,surface,text,primary,secondary});
+    }
+    lucide.createIcons();
+  } catch (err) {
+    console.error('Erreur dans render():', err);
+    if (document.getElementById('app')) {
+      document.getElementById('app').innerHTML = `
+        <div class="h-full w-full flex items-center justify-center p-4 bg-red-900">
+          <div class="text-center">
+            <h1 class="text-2xl font-bold text-white mb-4">Erreur d'affichage</h1>
+            <p class="text-white mb-2">${err.message || 'Une erreur est survenue'}</p>
+            <p class="text-sm text-white opacity-70 mb-4">Vérifiez la console pour plus de détails</p>
+            <button onclick="location.reload()" class="px-4 py-2 bg-white text-red-900 font-semibold rounded">Recharger</button>
+          </div>
+        </div>
+      `;
+    }
   }
-  lucide.createIcons();
 }
 
 function renderLogin(app, c) {
