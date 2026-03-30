@@ -9,6 +9,7 @@
     "start": "vercel start"
   },
   "dependencies": {
+    "@vercel/kv": "^1.0.1",
     "resend": "^3.0.0",
     "xlsx": "^0.18.5"
   },
