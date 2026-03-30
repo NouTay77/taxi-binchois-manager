@@ -584,7 +584,7 @@ function renderLogin(app, c) {
   const admins = getUsers().filter(u => u.role === 'admin');
   // Setup button always visible
 
-  const performLogin = () => {
+  const performLogin = async () => {
     const email = document.getElementById('login-email').value.trim();
     const pass = document.getElementById('login-pass').value;
     const user = getUsers().find(u => u.email === email && u.password === pass);
