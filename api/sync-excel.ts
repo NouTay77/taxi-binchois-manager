@@ -1,3 +1,4 @@
+// Version 1.0.2 - Cleanup
 import Redis from 'ioredis';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
