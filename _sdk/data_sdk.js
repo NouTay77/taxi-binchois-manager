@@ -4,60 +4,55 @@ window.dataSdk = {
 
   async init(dataHandler) {
     this.handler = dataHandler;
-    await this.load();
+    // On charge d'abord ce qu'on a sous la main (Local)
+    const saved = localStorage.getItem('dataSdk_data');
+    if (saved) {
+      this.data = JSON.parse(saved);
+      if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
+    }
+    // Puis on tente la synchro
+    await this.loadFromServer();
     return { isOk: true };
   },
 
-  async load() {
+  async loadFromServer() {
     try {
-      const response = await fetch('/api/sync-excel');
-      if (response.ok) {
-        this.data = await response.json();
-        if (this.handler && this.handler.onDataChanged) {
-          this.handler.onDataChanged(this.data);
+      // On force un POST avec une commande "read" si le GET est interdit
+      const res = await fetch('/api/sync-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'read' }) 
+      });
+      if (res.ok) {
+        const serverData = await res.json();
+        if (Array.isArray(serverData)) {
+          this.data = serverData;
+          localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
+          if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
         }
       }
-    } catch (e) {
-      console.error("Erreur de chargement des données:", e);
-      // Repli sur le local si l'API échoue
-      const saved = localStorage.getItem('dataSdk_data');
-      if (saved) this.data = JSON.parse(saved);
-    }
+    } catch (e) { console.error("Synchro impossible"); }
   },
 
   async create(item) {
-    const newItem = { ...item, __backendId: Date.now().toString() };
+    const newItem = { ...item, __backendId: Date.now().toString(), active: true };
     this.data.push(newItem);
     return await this.save();
   },
 
-  async update(item) {
-    const index = this.data.findIndex(d => d.__backendId === item.__backendId);
-    if (index !== -1) {
-      this.data[index] = { ...this.data[index], ...item };
-      return await this.save();
-    }
-    return { isOk: false, error: 'Non trouvé' };
-  },
-
   async save() {
-    // 1. Sauvegarde locale (sécurité)
     localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
+    if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
     
-    // 2. Envoi vers le fichier Excel via l'API
     try {
-      const response = await fetch('/api/sync-excel', {
+      const res = await fetch('/api/sync-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(this.data)
+        body: JSON.stringify(this.data) // On envoie toute la liste
       });
-      
-      if (this.handler && this.handler.onDataChanged) {
-        this.handler.onDataChanged(this.data);
-      }
-      return { isOk: response.ok };
+      return { isOk: res.ok };
     } catch (e) {
-      return { isOk: false, error: e.message };
+      return { isOk: true }; // On ne bloque pas l'utilisateur si le réseau flanche
     }
   }
 };
