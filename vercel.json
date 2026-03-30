@@ -1,6 +1,5 @@
 {
-  "buildCommand": "npm install",
-  "framework": "html",
+  "version": 2,
   "public": true,
   "regions": ["cdg1"],
   "functions": {
