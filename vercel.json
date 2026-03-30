@@ -1,7 +1,5 @@
 {
   "version": 2,
-  "public": true,
-  "regions": ["cdg1"],
   "functions": {
     "api/**/*.ts": {
       "memory": 512,
