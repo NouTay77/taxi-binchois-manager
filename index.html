@@ -1048,9 +1048,9 @@ document.getElementById('ch-save').onclick = async () => {
 
     const btn = document.getElementById('ch-save');
     btn.disabled = true;
-    btn.textContent = '...';
+    btn.textContent = 'Patientez...';
 
-    // On prépare un objet PROPRE sans les données techniques du SDK
+    // On prépare l'objet avec SEULEMENT les champs nécessaires
     const chauffeurData = {
       type: 'user',
       nom,
@@ -1059,8 +1059,8 @@ document.getElementById('ch-save').onclick = async () => {
       password: pass,
       role,
       active,
-      en_service: editingCh ? editingCh.en_service : false,
-      vehicule_id: editingCh ? editingCh.vehicule_id : '',
+      en_service: editingCh ? (editingCh.en_service || false) : false,
+      vehicule_id: editingCh ? (editingCh.vehicule_id || '') : '',
       photo_profile: photoUrl || (editingCh ? editingCh.photo_profile : generateRandomAvatar(prenom, nom)),
       course_state_active: editingCh ? (editingCh.course_state_active || '') : ''
     };
@@ -1068,24 +1068,29 @@ document.getElementById('ch-save').onclick = async () => {
     try {
       let r;
       if (editingCh && editingCh.__backendId) {
-        // MISE À JOUR : On passe l'ID séparément pour que ce soit propre
+        // MODIFICATION : On utilise l'ID pour cibler le bon chauffeur
         r = await window.dataSdk.update(editingCh.__backendId, chauffeurData);
       } else {
-        // CRÉATION
+        // CRÉATION : Nouveau chauffeur
         r = await window.dataSdk.create(chauffeurData);
       }
 
       if (r.isOk) {
-        showToast(editingCh ? 'Modifié avec succès' : 'Compte créé');
+        showToast(editingCh ? 'Chauffeur mis à jour' : 'Chauffeur créé');
         form.classList.add('hidden');
-        editingCh = null; // Très important de réinitialiser ici
-        render(); // Force le rafraîchissement de la liste
+        editingCh = null; 
+        // On attend un petit peu que le cloud se mette à jour avant de rafraîchir
+        setTimeout(() => {
+            render(); 
+            syncExcelFile('user');
+        }, 500);
       } else {
-        showToast('Erreur: ' + (r.error || 'Vérifiez si l\'email existe déjà'), 'error');
+        // Affiche l'erreur réelle renvoyée par le serveur
+        showToast('Erreur: ' + (r.error || 'Vérifiez l\'email'), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('Erreur de connexion', 'error');
+      showToast('Erreur de connexion au serveur', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Enregistrer';
