@@ -1032,7 +1032,7 @@ function renderAdminChauffeurs(app, c) {
     };
   });
 
- document.getElementById('ch-save').onclick = async () => {
+document.getElementById('ch-save').onclick = async () => {
     const nom = document.getElementById('ch-nom').value.trim();
     const prenom = document.getElementById('ch-prenom').value.trim();
     const email = document.getElementById('ch-email').value.trim();
@@ -1048,47 +1048,44 @@ function renderAdminChauffeurs(app, c) {
 
     const btn = document.getElementById('ch-save');
     btn.disabled = true;
-    btn.textContent = 'Enregistrement...';
+    btn.textContent = '...';
 
-    // Logique pour la photo
-    let photoProfile = photoUrl || (editingCh ? editingCh.photo_profile : generateRandomAvatar(prenom, nom));
+    // On prépare un objet PROPRE sans les données techniques du SDK
+    const chauffeurData = {
+      type: 'user',
+      nom,
+      prenom,
+      email,
+      password: pass,
+      role,
+      active,
+      en_service: editingCh ? editingCh.en_service : false,
+      vehicule_id: editingCh ? editingCh.vehicule_id : '',
+      photo_profile: photoUrl || (editingCh ? editingCh.photo_profile : generateRandomAvatar(prenom, nom)),
+      course_state_active: editingCh ? (editingCh.course_state_active || '') : ''
+    };
 
     try {
-      if (editingCh) {
-        // MISE À JOUR
-        const r = await window.dataSdk.update(editingCh.__backendId, {
-          ...editingCh,
-          nom, prenom, email, password: pass,
-          role, active, photo_profile: photoProfile
-        });
-        if (r.isOk) {
-          showToast('Chauffeur mis à jour');
-          form.classList.add('hidden'); // Ferme le formulaire
-          await syncExcelFile('user');
-        } else {
-          showToast('Erreur modification', 'error');
-        }
+      let r;
+      if (editingCh && editingCh.__backendId) {
+        // MISE À JOUR : On passe l'ID séparément pour que ce soit propre
+        r = await window.dataSdk.update(editingCh.__backendId, chauffeurData);
       } else {
         // CRÉATION
-        if (APP.allData.length >= 999) {
-          showToast('Limite atteinte', 'error');
-          btn.disabled = false; return;
-        }
-        const r = await window.dataSdk.create({
-          type: 'user', nom, prenom, email, password: pass,
-          role, active, en_service: false, photo_profile: photoProfile
-        });
-        if (r.isOk) {
-          showToast('Compte créé');
-          form.classList.add('hidden'); // Ferme le formulaire
-          await syncExcelFile('user');
-        } else {
-          showToast('Erreur création (Email déjà utilisé ?)', 'error');
-        }
+        r = await window.dataSdk.create(chauffeurData);
+      }
+
+      if (r.isOk) {
+        showToast(editingCh ? 'Modifié avec succès' : 'Compte créé');
+        form.classList.add('hidden');
+        editingCh = null; // Très important de réinitialiser ici
+        render(); // Force le rafraîchissement de la liste
+      } else {
+        showToast('Erreur: ' + (r.error || 'Vérifiez si l\'email existe déjà'), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('Erreur serveur', 'error');
+      showToast('Erreur de connexion', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Enregistrer';
