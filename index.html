@@ -460,8 +460,7 @@ function renderLogin(app, c) {
             Se connecter
           </button>
           <p id="login-error" class="mt-3 text-red-400 text-sm text-center hidden"></p>
-          <p class="mt-6 text-xs text-center opacity-50">Configuration initiale</p>
-          <button id="setup-btn" class="mt-2 w-full py-2 rounded-xl text-sm font-medium transition hover:opacity-80" style="background:${c.secondary};color:${c.text}" ${getUsers().filter(u => u.role === 'admin').length > 0 ? 'hidden' : ''}>
+          <button id="setup-btn" class="mt-6 w-full py-2 rounded-xl text-sm font-medium transition hover:opacity-80" style="background:${c.secondary};color:${c.text}" ${getUsers().filter(u => u.role === 'admin').length > 0 ? 'hidden' : ''}>
             Créer un admin
         </div>
 
@@ -1047,43 +1046,77 @@ document.getElementById('ch-save').onclick = async () => {
 
     const btn = document.getElementById('ch-save');
     btn.disabled = true;
-    btn.textContent = '...';
+    btn.textContent = 'Enregistrement...';
 
     try {
       let r;
       if (editingCh && editingCh.__backendId) {
-        // MODIFICATION
-        // On crée un objet propre SANS l'email si on ne veut pas le changer, 
-        // ou on l'envoie tel quel mais le SDK update a besoin de l'ID précis.
-        const updateData = {
+        // MODIFICATION - Construire l'objet complet avec tous les champs
+        const updated = {
+          ...editingCh,
           nom,
           prenom,
           password: pass,
           role,
           active,
+          email: editingCh.email, // Conserver l'email original
           photo_profile: document.getElementById('ch-photo').value.trim() || editingCh.photo_profile
         };
 
-        r = await window.dataSdk.update(editingCh.__backendId, updateData);
+        r = await window.dataSdk.update(updated);
       } else {
         // CRÉATION
+        if (getUsers().find(u => u.email === email)) {
+          showToast('Cet email est déjà utilisé', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Enregistrer';
+          return;
+        }
+        
         const newData = {
-          type: 'user', nom, prenom, email, password: pass,
-          role, active, en_service: false
+          type: 'user',
+          email,
+          password: pass,
+          nom,
+          prenom,
+          role,
+          active,
+          en_service: false,
+          vehicule_id: '',
+          immatriculation: '',
+          marque: '',
+          modele: '',
+          statut_vehicule: '',
+          chauffeur_id: '',
+          chauffeur_nom: '',
+          date_debut_service: '',
+          date_fin_service: '',
+          heure_prise_en_charge: '',
+          commune_prise_en_charge: '',
+          heure_fin_course: '',
+          commune_fin_course: '',
+          prix: 0,
+          course_id: '',
+          statut_chauffeur: '',
+          statut_vehicule_course: '',
+          photo_profile: generateRandomAvatar(prenom, nom),
+          course_state_active: ''
         };
         r = await window.dataSdk.create(newData);
       }
 
       if (r.isOk) {
-        showToast('Enregistré !');
+        showToast(editingCh ? 'Chauffeur modifié avec succès' : 'Chauffeur créé avec succès');
+        if (!editingCh) await syncExcelFile('user');
         form.classList.add('hidden');
         editingCh = null;
-        render(); // Rafraîchit la liste
+        render();
       } else {
-        showToast('Erreur serveur', 'error');
+        showToast((r.error || 'Erreur lors de l\'enregistrement'), 'error');
       }
     } catch (err) {
-      showToast('Erreur de connexion', 'error');
+      console.error('Erreur connexion serveur:', err);
+      showToast('Erreur de connexion au serveur', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Enregistrer';
@@ -1489,19 +1522,36 @@ function renderChauffeurMain(app, c) {
       
       document.getElementById('save-km-btn').onclick = async () => {
         const kmDebut = parseFloat(document.getElementById('km-debut-input').value);
-        if (isNaN(kmDebut) || kmDebut < 0) { showToast('Entrez un kilométrage valide','error'); return; }
+        if (isNaN(kmDebut) || kmDebut < 0) { 
+          showToast('Entrez un kilométrage valide','error'); 
+          return; 
+        }
         
         const btn = document.getElementById('save-km-btn');
-        btn.disabled=true; btn.textContent='Démarrage...';
+        btn.disabled=true; 
+        btn.textContent='Démarrage...';
         el.remove();
         
         try {
-          const vhUpdateRes = await window.dataSdk.update({...veh, statut_vehicule:'occupé'});
-          if (!vhUpdateRes.isOk) throw new Error('Erreur mise à jour véhicule');
-          
           const now = new Date().toISOString();
-          const userUpdateRes = await window.dataSdk.update({...user, en_service:true, vehicule_id:veh.__backendId, date_debut_service:now, km_debut:kmDebut});
-          if (!userUpdateRes.isOk) throw new Error('Erreur mise à jour utilisateur');
+          
+          // Mise à jour du véhicule
+          const vhUpdateRes = await window.dataSdk.update({...veh, statut_vehicule:'occupé'});
+          if (!vhUpdateRes.isOk) {
+            throw new Error('Erreur mise à jour du statut du véhicule');
+          }
+          
+          // Mise à jour du chauffeur
+          const userUpdateRes = await window.dataSdk.update({
+            ...user, 
+            en_service: true, 
+            vehicule_id: veh.__backendId, 
+            date_debut_service: now, 
+            km_debut: kmDebut
+          });
+          if (!userUpdateRes.isOk) {
+            throw new Error('Erreur mise à jour du profil chauffeur');
+          }
           
           if(APP.allData.length < 999) {
             const histRes = await window.dataSdk.create({
@@ -1520,10 +1570,12 @@ function renderChauffeurMain(app, c) {
           }
           
           APP.serviceState = {vehiculeId: veh.__backendId, startTime: now, kmDebut: kmDebut};
-          showToast('Service démarré !');
+          showToast('Service démarré avec succès !');
+          render();
         } catch (err) {
           console.error('Erreur démarrage service:', err);
-          showToast('Erreur lors du démarrage','error');
+          showToast('Erreur: ' + (err.message || 'Impossible de démarrer le service'), 'error');
+          setTimeout(() => { el.remove(); render(); }, 1000);
         }
       };
     };
@@ -1554,47 +1606,66 @@ function renderChauffeurMain(app, c) {
       
       document.getElementById('save-km-fin-btn').onclick = async () => {
         const kmFin = parseFloat(document.getElementById('km-fin-input').value);
-        if (isNaN(kmFin) || kmFin < 0) { showToast('Entrez un kilométrage valide','error'); return; }
+        if (isNaN(kmFin) || kmFin < 0) { 
+          showToast('Entrez un kilométrage valide','error'); 
+          return; 
+        }
         
         el.remove();
         showConfirm('Êtes-vous sûr de vouloir terminer votre service ?', async () => {
           const btn = document.getElementById('stop-service-btn');
-          btn.disabled=true; btn.textContent='Arrêt...';
+          btn.disabled=true; 
+          btn.textContent='Arrêt...';
           try {
             const now = new Date().toISOString();
             
-            if (selectedV) {
+            // Libérer le véhicule
+            if (selectedV && selectedV.__backendId) {
               const vehRes = await window.dataSdk.update({...selectedV, statut_vehicule:'libre'});
               if (!vehRes.isOk) console.warn('Erreur libération véhicule:', vehRes.error);
             }
             
-            const userRes = await window.dataSdk.update({...user, en_service:false, vehicule_id:'', date_fin_service:now, course_state_active:'', km_fin:kmFin});
-            if (!userRes.isOk) console.warn('Erreur mise à jour utilisateur:', userRes.error);
+            // Mettre à jour le chauffeur
+            const userRes = await window.dataSdk.update({
+              ...user, 
+              en_service: false, 
+              vehicule_id: '', 
+              date_fin_service: now, 
+              course_state_active: '', 
+              km_fin: kmFin
+            });
+            if (!userRes.isOk) throw new Error('Erreur mise à jour profil chauffeur');
             
+            // Mettre à jour l'historique du service
             const serviceHistory = getServiceHistory();
             const lastService = serviceHistory.find(sh => sh.service_history_chauffeur_id === user.__backendId && !sh.service_history_fin);
             if (lastService) {
-              const histRes = await window.dataSdk.update({...lastService, service_history_fin: now, km_fin: kmFin});
+              const histRes = await window.dataSdk.update({
+                ...lastService, 
+                service_history_fin: now, 
+                km_fin: kmFin
+              });
               if (!histRes.isOk) console.warn('Erreur mise à jour historique:', histRes.error);
             }
             
             APP.serviceState = null;
             APP.courseState = null;
-            showToast('Service terminé');
+            showToast('Service terminé avec succès');
             
             setTimeout(() => {
-              const myCourses = getCourses().filter(cr => cr.chauffeur_id === user.__backendId);
+              const myCourses = getCourses().filter(cr => cr.chauffeur_nom === (user.prenom + ' ' + user.nom));
               const today = new Date().toLocaleDateString('fr-BE');
               const todayCourses = myCourses.filter(cr => cr.heure_prise_en_charge && new Date(cr.heure_prise_en_charge).toLocaleDateString('fr-BE') === today);
-              const totalRecette = todayCourses.reduce((s,cr)=>s+(cr.prix||0),0);
+              const totalRecette = todayCourses.reduce((s,cr)=>s+(cr.client_paye ? (cr.prix||0) : 0), 0);
               showDailyRecap(totalRecette, todayCourses.length, user.prenom + ' ' + user.nom);
             }, 500);
           } catch (err) {
             console.error('Erreur arrêt service:', err);
-            showToast('Erreur lors de l\'arrêt','error');
+            showToast('Erreur: ' + (err.message || 'Impossible d\'arrêter le service'), 'error');
+            render();
           } finally {
             btn.disabled=false;
-            btn.innerHTML='<i data-lucide="square" style="width:22px;height:22px"></i> Arrêter le service';
+            btn.textContent='Arrêter le service';
           }
         });
       };
