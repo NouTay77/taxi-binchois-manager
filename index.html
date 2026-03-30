@@ -399,6 +399,29 @@ async function sendDailyRecap(chauffeurName, chauffeurEmail, adminEmail) {
   }
 }
 
+async function notifyAdmins(message, eventType = 'info') {
+  if (APP.allData.length >= 999) return;
+  
+  try {
+    const admins = getUsers().filter(a => a.role === 'admin');
+    for (const admin of admins) {
+      await window.dataSdk.create({
+        type: 'notification',
+        notification_id: uid(),
+        notification_from: 'Système',
+        notification_to: admin.__backendId,
+        notification_message: message,
+        notification_type: eventType,
+        notification_timestamp: new Date().toISOString(),
+        notification_read: false,
+        email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
+      });
+    }
+  } catch (err) {
+    console.error('Erreur notification admin:', err);
+  }
+}
+
 function cfg(key) {
   return (window.elementSdk?.config?.[key]) || defaultConfig[key];
 }
@@ -492,28 +515,10 @@ function renderLogin(app, c) {
         APP.courseState = JSON.parse(user.course_state_active);
       } catch(e) {}
     }
-    // Envoyer un log de connexion à l'admin
-    if (user.role === 'chauffeur' && APP.allData.length < 999) {
-      const admins = getUsers().filter(a => a.role === 'admin');
+    // Envoyer une notification de connexion aux admins
+    if (user.role === 'chauffeur') {
       const userName = ((user.prenom || '') + ' ' + (user.nom || '')).trim() || 'Chauffeur';
-      const message = userName + ' s\'est connecté';
-      
-      admins.forEach(async (admin) => {
-        try {
-          await window.dataSdk.create({
-            type: 'notification',
-            notification_id: uid(),
-            notification_from: userName,
-            notification_to: admin.__backendId,
-            notification_message: message,
-            notification_timestamp: new Date().toISOString(),
-            notification_read: false,
-            email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
-          });
-        } catch (err) {
-          console.error('Erreur notification connexion:', err);
-        }
-      });
+      await notifyAdmins('✅ ' + userName + ' s\'est connecté', 'login');
     }
     render();
   };
@@ -612,35 +617,25 @@ function adminLayout(app, c, activePage, contentHTML) {
   });
   const logout = async () => {
     // Envoyer une notification de déconnexion et le récapitulatif journalier
-    if (APP.currentUser && APP.currentUser.role === 'chauffeur' && APP.allData.length < 999) {
-      const admins = getUsers().filter(a => a.role === 'admin');
+    if (APP.currentUser && APP.currentUser.role === 'chauffeur') {
       const chauffeurName = (APP.currentUser.prenom || '') + ' ' + (APP.currentUser.nom || '');
-      const message = (chauffeurName.trim() || 'Chauffeur') + ' s\'est déconnecté';
+      const cleanName = (chauffeurName.trim() || 'Chauffeur');
       
-      admins.forEach(async (admin) => {
-        try {
-          await window.dataSdk.create({
-            type: 'notification',
-            notification_id: uid(),
-            notification_from: chauffeurName.trim() || 'Utilisateur',
-            notification_to: admin.__backendId,
-            notification_message: message,
-            notification_timestamp: new Date().toISOString(),
-            notification_read: false,
-            email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
-          });
-        } catch (err) {
-          console.error('Erreur envoi notification:', err);
-        }
-      });
+      // Notification de déconnexion
+      await notifyAdmins('⏹️ ' + cleanName + ' s\'est déconnecté', 'logout');
       
-      // Envoyer le récapitulatif journalier
-      if (admins.length > 0) {
+      // Envoyer le récapitulatif journalier si en service
+      const admins = getUsers().filter(a => a.role === 'admin');
+      if (admins.length > 0 && APP.currentUser.en_service) {
         const chauffeurEmail = APP.currentUser.email;
-        await sendDailyRecap(chauffeurName.trim() || 'Chauffeur', chauffeurEmail, admins[0].email);
+        await sendDailyRecap(cleanName, chauffeurEmail, admins[0].email);
       }
     }
-    APP.currentUser=null; APP.currentPage='login'; APP.serviceState=null; APP.courseState=null; render();
+    APP.currentUser=null; 
+    APP.currentPage='login'; 
+    APP.serviceState=null; 
+    APP.courseState=null; 
+    render();
   };
   const lb = document.getElementById('logout-btn'); if(lb) lb.onclick = logout;
   const lbm = document.getElementById('logout-btn-mobile'); if(lbm) lbm.onclick = logout;
@@ -1571,6 +1566,14 @@ function renderChauffeurMain(app, c) {
           
           APP.serviceState = {vehiculeId: veh.__backendId, startTime: now, kmDebut: kmDebut};
           showToast('Service démarré avec succès !');
+          
+          // Notification admin: démarrage du service
+          if (user && user.prenom && user.nom) {
+            const userName = user.prenom + ' ' + user.nom;
+            const vehInfo = veh ? ' (' + veh.immatriculation + ')' : '';
+            await notifyAdmins('🚗 ' + userName + ' a démarré son service' + vehInfo, 'service_start');
+          }
+          
           render();
         } catch (err) {
           console.error('Erreur démarrage service:', err);
@@ -1651,6 +1654,13 @@ function renderChauffeurMain(app, c) {
             APP.serviceState = null;
             APP.courseState = null;
             showToast('Service terminé avec succès');
+            
+            // Notification admin: fin du service
+            if (user && user.prenom && user.nom) {
+              const userName = user.prenom + ' ' + user.nom;
+              const vehInfo = selectedV ? ' (' + selectedV.immatriculation + ')' : '';
+              await notifyAdmins('✋ ' + userName + ' a terminé son service' + vehInfo, 'service_end');
+            }
             
             setTimeout(() => {
               const myCourses = getCourses().filter(cr => cr.chauffeur_nom === (user.prenom + ' ' + user.nom));
