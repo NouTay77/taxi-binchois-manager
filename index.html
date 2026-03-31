@@ -1935,6 +1935,100 @@ render();
   </script>
  </body>
 </html>
+      montantContainer.classList.add('hidden');
+    } else {
+      nomContainer.classList.remove('hidden');
+      montantContainer.classList.remove('hidden');
+    }
+  });
+
+  const saveBtn = document.getElementById('save-course-btn');
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const prix = parseFloat(document.getElementById('course-price').value);
+      const clientPaye = document.getElementById('client-paye').checked;
+      const nomClient = clientPaye ? '' : document.getElementById('client-nom').value.trim();
+      const montantImpaye = clientPaye ? 0 : parseFloat(document.getElementById('montant-impaye').value) || 0;
+      
+      if (isNaN(prix) || prix < 0) { showToast('Entrez un prix valide','error'); return; }
+      if (!clientPaye && !nomClient) { showToast('Entrez le nom du client pour une course impayée','error'); return; }
+      if (!clientPaye && (isNaN(montantImpaye) || montantImpaye < 0)) { showToast('Entrez un montant impayé valide','error'); return; }
+      
+      saveBtn.disabled=true; saveBtn.textContent='Enregistrement...';
+      
+      if(APP.allData.length>=999){
+        showToast('Limite de données atteinte','error');
+        saveBtn.disabled=false;
+        saveBtn.textContent='Enregistrer';
+        return;
+      }
+      
+      try {
+        const cs = APP.courseState;
+        const ed = APP.courseEndData;
+        const r = await window.dataSdk.create({
+          type:'course',
+          course_id: uid(),
+          date_course: new Date().toLocaleDateString('fr-BE'),
+          chauffeur_id: user.__backendId,
+          chauffeur_nom: user.prenom+' '+user.nom,
+          immatriculation: selectedV?selectedV.immatriculation:'',
+          vehicule_id: user.vehicule_id,
+          date_debut_service: user.date_debut_service||'',
+          date_fin_service: '',
+          heure_prise_en_charge: cs?cs.startTime:'',
+          commune_prise_en_charge: cs?cs.startCommune:'',
+          heure_fin_course: ed?ed.endTime:'',
+          commune_fin_course: ed?ed.endCommune:'',
+          prix: prix,
+          client_nom: nomClient,
+          client_paye: clientPaye,
+          montant_impaye: montantImpaye,
+          statut_chauffeur: 'en service',
+          statut_vehicule_course: 'occupé',
+          email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,marque:'',modele:'',statut_vehicule:'',photo_profile:'',course_state_active:''
+        });
+        
+        if(r.isOk) {
+          showToast(`Course enregistrée : ${prix.toFixed(2)} €`);
+          APP.courseState = null;
+          APP.courseEndData = null;
+          const userRes = await window.dataSdk.update({...user, course_state_active:''});
+          if (!userRes.isOk) console.warn('Erreur reset course:', userRes.error);
+          document.getElementById('price-popup').classList.add('hidden');
+          document.getElementById('course-price').value = '';
+          document.getElementById('client-nom').value = '';
+          document.getElementById('client-paye').checked = true;
+          document.getElementById('montant-impaye').value = '';
+          document.getElementById('client-nom-container').classList.add('hidden');
+          document.getElementById('montant-impaye-container').classList.add('hidden');
+          render();
+        } else {
+          console.error('Erreur création course:', r.error);
+          showToast('Erreur enregistrement','error');
+        }
+      } catch (err) {
+        console.error('Erreur enregistrement course:', err);
+        showToast('Erreur enregistrement','error');
+      } finally {
+        saveBtn.disabled=false;
+        saveBtn.textContent='Enregistrer';
+      }
+    };
+  }
+
+  document.querySelectorAll('.vehicle-option').forEach(opt => {
+    opt.querySelector('input').addEventListener('change', () => {
+      document.querySelectorAll('.vehicle-option').forEach(o => o.style.borderColor=c.secondary);
+      opt.style.borderColor = c.primary;
+    });
+  });
+}
+
+render();
+  </script>
+ </body>
+</html>
 
 render();
  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9e28252546224718',t:'MTc3NDU0ODk3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
