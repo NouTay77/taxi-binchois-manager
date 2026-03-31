@@ -15,6 +15,7 @@
     .font-display { font-family: 'Playfair Display', serif; }
     html, body, #app { height: 100%; margin: 0; padding: 0; }
     body { background: #0A0F1C; color: white; }
+    .card { background: #1F2A43; border: 1px solid #3B4A6B; }
   </style>
 </head>
 <body class="h-full overflow-auto">
@@ -43,7 +44,7 @@
           console.log(`[SDK] ${this.data.length} enregistrements chargés`);
         }
       } catch (e) {
-        console.warn('[SDK] Redis non accessible → mode offline');
+        console.warn('[SDK] Redis non accessible');
       }
 
       if (this.handler) this.handler.onDataChanged(this.data);
@@ -70,8 +71,8 @@
       }, 4000);
     },
 
-    async list() {
-      return { isOk: true, users: this.data.filter(d => d.type === 'user'), vehicles: this.data.filter(d => d.type === 'vehicule') };
+    async list() { 
+      return { isOk: true, users: this.data.filter(d => d.type === 'user'), vehicles: this.data.filter(d => d.type === 'vehicule') }; 
     },
 
     async create(item) {
@@ -93,7 +94,6 @@
     async save() {
       this.lastSyncHash = JSON.stringify(this.data);
       if (this.handler) this.handler.onDataChanged(this.data);
-
       await fetch('/api/store', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -103,22 +103,15 @@
   };
   </script>
 
-  <!-- ====================== MAIN APP ====================== -->
+  <!-- ====================== MAIN APPLICATION ====================== -->
   <script>
-const defaultConfig = { app_title: 'MyTaxi Binchois', login_subtitle: 'Gestion de flotte de taxis' };
-
 let APP = {
   currentUser: null,
   currentPage: 'login',
   allData: [],
   users: [],
-  vehicles: [],
-  toasts: []
+  vehicles: []
 };
-
-function showToast(msg, type = 'success') {
-  console.log(`%c[Toast] ${msg}`, type === 'error' ? 'color:red' : 'color:lime');
-}
 
 const dataHandler = {
   onDataChanged(data) {
@@ -130,69 +123,107 @@ const dataHandler = {
 };
 
 async function initApp() {
-  console.log('[APP] Démarrage...');
   document.getElementById('app').innerHTML = `
-    <div class="h-full flex items-center justify-center bg-[#0A0F1C]">
+    <div class="h-full flex items-center justify-center">
       <div class="text-center">
-        <div class="w-12 h-12 border-4 border-t-yellow-400 border-gray-700 rounded-full animate-spin mx-auto mb-4"></div>
-        <p class="text-yellow-400">Chargement de l'application...</p>
+        <div class="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-yellow-400">Chargement...</p>
       </div>
     </div>`;
-
-  await window.dataSdk.init(dataHandler);
   
-  // Restauration session
+  await window.dataSdk.init(dataHandler);
+
   const sessionID = localStorage.getItem('sessionID');
   if (sessionID) {
     try {
       const res = await fetch(`/api/store?sessionID=${sessionID}`);
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.user) {
-          APP.currentUser = json.user;
-          APP.currentPage = json.user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
-        }
+        if (json.success && json.user) APP.currentUser = json.user;
       }
     } catch(e) {}
   }
+
+  if (!APP.currentUser) APP.currentPage = 'login';
+  else APP.currentPage = APP.currentUser.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
 
   render();
 }
 
 function render() {
   const app = document.getElementById('app');
-  if (!app) return;
-
-  if (!APP.currentUser) {
-    app.innerHTML = `
-      <div class="min-h-screen flex items-center justify-center p-4" style="background: linear-gradient(135deg, #0A0F1C, #1F2A43)">
-        <div class="max-w-md w-full bg-[#1F2A43] rounded-3xl p-8 shadow-2xl">
-          <h1 class="text-4xl font-bold text-center mb-2 text-yellow-400">MyTaxi Binchois</h1>
-          <p class="text-center text-gray-400 mb-8">Connexion</p>
-          
-          <input id="email" type="email" placeholder="Email" class="w-full p-4 rounded-2xl bg-[#0A0F1C] mb-4 text-white">
-          <input id="password" type="password" placeholder="Mot de passe" class="w-full p-4 rounded-2xl bg-[#0A0F1C] mb-6 text-white">
-          
-          <button onclick="performLogin()" class="w-full py-4 bg-yellow-400 text-black font-bold rounded-2xl">
-            Se connecter
-          </button>
-        </div>
-      </div>`;
-  } else {
-    app.innerHTML = `<div class="p-8 text-center"><h1 class="text-3xl">Bienvenue ${APP.currentUser.prenom || ''}</h1><p>Page : ${APP.currentPage}</p></div>`;
+  if (APP.currentPage === 'login') {
+    renderLogin(app);
+  } else if (APP.currentPage === 'admin-dashboard') {
+    renderAdminDashboard(app);
   }
+}
+
+function renderLogin(app) {
+  app.innerHTML = `
+    <div class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#0A0F1C] to-[#1F2A43]">
+      <div class="w-full max-w-md card rounded-3xl p-8">
+        <h1 class="font-display text-4xl font-bold text-center mb-2 text-yellow-400">MyTaxi Binchois</h1>
+        <p class="text-center text-gray-400 mb-8">Gestion de flotte</p>
+        
+        <input id="email" type="email" placeholder="Email" class="w-full p-4 rounded-2xl bg-[#0A0F1C] mb-4">
+        <input id="password" type="password" placeholder="Mot de passe" class="w-full p-4 rounded-2xl bg-[#0A0F1C] mb-6">
+        
+        <button onclick="performLogin()" class="w-full py-4 bg-yellow-400 hover:bg-yellow-300 text-black font-bold rounded-2xl transition">
+          Se connecter
+        </button>
+      </div>
+    </div>`;
 }
 
 async function performLogin() {
   const email = document.getElementById('email').value.trim();
-  const pass = document.getElementById('password').value;
-  // Pour le moment on simule un login réussi
-  APP.currentUser = { prenom: "Admin", nom: "Test", role: "admin", email };
-  localStorage.setItem('sessionID', 'test-session-' + Date.now());
+  const password = document.getElementById('password').value;
+
+  const user = APP.users.find(u => u.email === email && u.password === password);
+  
+  if (user) {
+    APP.currentUser = user;
+    localStorage.setItem('sessionID', 'session-' + Date.now());
+    APP.currentPage = user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
+    render();
+  } else {
+    alert("Identifiants incorrects");
+  }
+}
+
+function renderAdminDashboard(app) {
+  app.innerHTML = `
+    <div class="p-8">
+      <h1 class="text-3xl font-bold mb-2">Bienvenue ${APP.currentUser?.prenom || 'Principal'}</h1>
+      <p class="text-gray-400 mb-8">Page : admin-dashboard</p>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-6 rounded-3xl">
+          <h3 class="text-yellow-400">Chauffeurs</h3>
+          <p class="text-4xl font-bold mt-2">${APP.users.length}</p>
+        </div>
+        <div class="card p-6 rounded-3xl">
+          <h3 class="text-yellow-400">Véhicules</h3>
+          <p class="text-4xl font-bold mt-2">${APP.vehicles.length}</p>
+        </div>
+        <div class="card p-6 rounded-3xl">
+          <button onclick="addTestData()" class="w-full py-3 bg-yellow-400 text-black rounded-2xl font-semibold">
+            Ajouter des données de test
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function addTestData() {
+  await window.dataSdk.create({ type: 'user', email: 'admin@test.com', password: '1234', role: 'admin', prenom: 'Principal', nom: 'Admin' });
+  await window.dataSdk.create({ type: 'vehicule', immatriculation: '1-ABC-999', marque: 'Mercedes', modele: 'Vito' });
+  alert("Données de test ajoutées ! Actualise la page.");
   render();
 }
 
-// Lancement immédiat
+// Lancement
 window.onload = initApp;
   </script>
 </body>
