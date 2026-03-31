@@ -1512,18 +1512,11 @@ function renderChauffeurMain(app, c) {
           <p class="text-2xl font-bold mt-1" style="color:${c.primary}">${todayTotal.toFixed(2)} €</p>
         </div>
       </div>
-      ${todayCourses.length>0?`
-      <div class="rounded-2xl p-5" style="background:${c.surface};border:1px solid ${c.secondary}">
-        <h3 class="font-semibold mb-3">Courses du jour</h3>
-        <div class="space-y-2">${todayCourses.slice().reverse().map(cr => {
-          const clientInfo = cr.client_paye ? '' : ` - ${cr.client_nom || 'Impayé'}`;
+      ${todayCourses.length>0?`<div class="rounded-2xl p-5" style="background:${c.surface};border:1px solid ${c.secondary}"><h3 class="font-semibold mb-3">Courses du jour</h3><div class="space-y-2">` + todayCourses.slice().reverse().map(cr => {
+          const clientInfo = cr.client_paye ? '' : ' - ' + (cr.client_nom || 'Impayé');
           const clientColor = !cr.client_paye ? '#F59E0B' : c.text;
-          return `<div class="flex items-center justify-between px-4 py-3 rounded-xl" style="background:${c.bg}">
-            <div class="flex-1"><span class="opacity-60">${formatTime(cr.heure_prise_en_charge)}</span> - <span class="opacity-60">${formatTime(cr.heure_fin_course)}</span> ${cr.commune_prise_en_charge||'?'} → ${cr.commune_fin_course||'?'}<span style="color:${clientColor}; font-weight: ${!cr.client_paye ? 'bold' : 'normal'}">${clientInfo}</span></div>
-            <span class="font-bold text-sm" style="color:${c.primary}">${cr.prix?cr.prix.toFixed(2)+'€':'-'}</span>
-          </div>`;
-        }).join('')}</div>
-      </div>`:''
+          return `<div class="flex items-center justify-between px-4 py-3 rounded-xl" style="background:${c.bg}"><div class="flex-1"><span class="opacity-60">${formatTime(cr.heure_prise_en_charge)}</span> - <span class="opacity-60">${formatTime(cr.heure_fin_course)}</span> ${cr.commune_prise_en_charge||'?'} → ${cr.commune_fin_course||'?'}<span style="color:${clientColor}; font-weight: ${!cr.client_paye ? 'bold' : 'normal'}">${clientInfo}</span></div><span class="font-bold text-sm" style="color:${c.primary}">${cr.prix?cr.prix.toFixed(2)+'€':'-'}</span></div>`;
+        }).join('') + `</div></div></div>`:''
       }
     </div>
     <div id="price-popup" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60">
