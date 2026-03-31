@@ -57,6 +57,8 @@ let APP = {
   currentUser: null,
   currentPage: 'login',
   allData: [],
+  users: [],
+  vehicles: [],
   toasts: [],
   confirmDialog: null,
   editItem: null,
@@ -66,8 +68,8 @@ let APP = {
   courseEndData: null,
 };
 
-function getUsers() { return APP.allData.filter(d => d.type === 'user'); }
-function getVehicules() { return APP.allData.filter(d => d.type === 'vehicule'); }
+function getUsers() { return APP.users; }
+function getVehicules() { return APP.vehicles; }
 function getCourses() { return APP.allData.filter(d => d.type === 'course'); }
 function getNotifications() { return APP.allData.filter(d => d.type === 'notification'); }
 function getServiceHistory() { return APP.allData.filter(d => d.type === 'service_history'); }
@@ -222,6 +224,8 @@ function uid() { return Math.random().toString(36).substr(2,9); }
 const dataHandler = {
   onDataChanged(data) {
     APP.allData = data || [];
+    APP.users = APP.allData.filter(d => d.type === 'user');
+    APP.vehicles = APP.allData.filter(d => d.type === 'vehicule');
     const users = APP.allData.filter(d => d.type === 'user');
     const admins = users.filter(u => u.role === 'admin');
     console.log(`[DataUpdate] Total: ${data.length} | Users: ${users.length} | Admins: ${admins.length}`);
@@ -243,40 +247,101 @@ const dataHandler = {
   }
 };
 
+async function loadCloudData() {
+  if (!window.dataSdk) {
+    console.error('Erreur: window.dataSdk est introuvable');
+    return false;
+  }
+  const result = await window.dataSdk.list();
+  if (result.isOk) {
+    APP.users = result.users || [];
+    APP.vehicles = result.vehicles || [];
+    console.log('[CloudData] Chargement réussi:', APP.users.length, 'chauffeurs,', APP.vehicles.length, 'véhicules');
+    return true;
+  } else {
+    console.error('[CloudData] Erreur:', result.error);
+    return false;
+  }
+}
+
 async function initApp() {
-console.log('Initialisation du SDK données...');
+  if (APP._isRestoring) {
+    console.log('[Restore] Déjà en cours...');
+    return;
+  }
+  
+  APP._isRestoring = true;
+  console.log('[Init] Démarrage de l\'initialisation...');
+  
+  // Attendre que le SDK soit chargé si nécessaire (max 2 secondes)
+  let retries = 0;
+  while (!window.dataSdk && retries < 20) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    retries++;
+  }
+
+  if (!window.dataSdk) {
+    console.error('[Init] Délai d\'attente dépassé pour window.dataSdk');
+    APP._isRestoring = false;
+    render();
+    return;
+  }
+
   const r = await window.dataSdk.init(dataHandler);
 
   if (r.isOk) {
-    console.log('SDK données initialisé avec succès');
+    console.log('[Init] SDK data initialisé');
+    
+    // CRITICAL: Charger les données du Cloud EN PREMIER et attendre complètement
+    console.log('[Init] Démarrage loadCloudData()...');
+    const dataLoaded = await loadCloudData();
+    console.log('[Init] LoadCloudData résultat:', dataLoaded, '→ APP.users:', APP.users.length, 'APP.vehicles:', APP.vehicles.length);
+
     // Restaurer la session utilisateur depuis localStorage/Redis
     const savedSessionID = localStorage.getItem('sessionID');
     if (savedSessionID) {
+      console.log('[Restore] SessionID trouvé:', savedSessionID.substring(0, 8) + '...');
       try {
         const sessionRes = await fetch(`/api/store?sessionID=${encodeURIComponent(savedSessionID)}`);
         if (sessionRes.ok) {
           const sessionData = await sessionRes.json();
           if (sessionData.success && sessionData.user) {
+            console.log('[Restore] Session validée pour:', sessionData.user.email);
             APP.currentUser = sessionData.user;
             APP.currentPage = sessionData.user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
             if (sessionData.user.en_service && sessionData.user.course_state_active) {
               try {
                 APP.courseState = JSON.parse(sessionData.user.course_state_active);
-              } catch(e) {}
+                console.log('[Restore] Course state restauré');
+              } catch(e) {
+                console.warn('[Restore] Erreur parse courseState:', e.message);
+              }
             }
+          } else {
+            console.log('[Restore] Session data invalide, nettoyage');
+            localStorage.removeItem('sessionID');
           }
-                } else if (sessionRes.status === 404) {
-                  // Uniquement si la session est explicitement introuvable
+        } else if (sessionRes.status === 404) {
+          console.log('[Restore] Session non trouvée (404), nettoyage');
           localStorage.removeItem('sessionID');
+        } else {
+          console.warn('[Restore] Statut inattendu:', sessionRes.status);
         }
       } catch(e) {
-                console.error('Erreur serveur ou Redis lent (session conservée localement):', e);
+        console.error('[Restore] Erreur serveur/Redis:', e.message);
       }
+    } else {
+      console.log('[Restore] Aucun sessionID trouvé');
     }
-            render();
+    
+    APP._isRestoring = false;
+    console.log('[Init] Terminé. Appel render(). currentUser:', APP.currentUser ? APP.currentUser.email : 'null');
+    render();
   } else {
+    APP._isRestoring = false;
+    console.error('[Init] Erreur init SDK:', r.error);
     showToast('Erreur de connexion au Cloud','error');
-            render();
+    render();
   }
 }
 initApp();
@@ -484,6 +549,15 @@ function cfg(key) {
 function render() {
   const app = document.getElementById('app');
   if (!app) return;
+
+  // Diagnostic Critique : Vérifier si les utilisateurs sont présents
+  if (APP.users.length === 0 && APP.currentPage !== 'login') {
+    console.error('[Render] ⚠️ APP.users est VIDE! page:', APP.currentPage, 'allData:', APP.allData.length, 'currentUser:', APP.currentUser ? APP.currentUser.email : 'null');
+  }
+  
+  if (APP.currentPage !== 'login' && !APP.currentUser) {
+    console.warn('[Render] Page non-login mais pas de currentUser. Forcing login.');
+  }
 
   // 1. Vérification de la session : Si un sessionID existe mais l'utilisateur n'est pas encore chargé
   const savedSessionID = localStorage.getItem('sessionID');
@@ -919,25 +993,37 @@ function renderAdminVehicules(app, c) {
     const modele = document.getElementById('v-modele').value.trim();
     if(!immat||!marque||!modele) { showToast('Remplissez tous les champs','error'); return; }
     const btn = document.getElementById('v-save');
-    btn.disabled=true; btn.textContent='...';
-    if(editingV) {
-      const updated = {...editingV, immatriculation:immat, marque, modele};
-      const r = await window.dataSdk.update(updated);
-      if(r.isOk) { 
-        showToast('Véhicule modifié'); 
-        await syncExcelFile('vehicule'); 
-      } else showToast('Erreur','error');
-    } else {
-      if(APP.allData.length >= 999) { showToast('Limite de données atteinte','error'); btn.disabled=false; btn.textContent='Enregistrer'; return; }
-      const newV = {type:'vehicule',immatriculation:immat,marque,modele,statut_vehicule:'libre',email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''};
-      const r = await window.dataSdk.create(newV);
-      if(r.isOk) { 
-        showToast('Véhicule ajouté'); 
-        await syncExcelFile('vehicule'); 
-        render();
-      } else showToast('Erreur','error');
+    btn.disabled=true; btn.textContent='Enregistrement...';
+    try {
+      if(editingV) {
+        const updated = {...editingV, immatriculation:immat, marque, modele};
+        const r = await window.dataSdk.update(updated);
+        if(r.isOk) { 
+          showToast('Véhicule modifié'); 
+          await syncExcelFile('vehicule');
+          form.classList.add('hidden');
+          await new Promise(r => setTimeout(r, 300));
+          render();
+        } else showToast('Erreur: ' + (r.error || 'modification échouée'),'error');
+      } else {
+        if(APP.allData.length >= 999) { showToast('Limite de données atteinte','error'); return; }
+        const newV = {type:'vehicule',immatriculation:immat,marque,modele,statut_vehicule:'libre',email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''};
+        const r = await window.dataSdk.create(newV);
+        if(r.isOk) { 
+          showToast('Véhicule ajouté');
+          await new Promise(res => setTimeout(res, 200));
+          await syncExcelFile('vehicule');
+          form.classList.add('hidden');
+          render();
+        } else showToast('Erreur: ' + (r.error || 'création échouée'),'error');
+      }
+    } catch(err) {
+      console.error('Erreur véhicule:', err);
+      showToast('Erreur: ' + err.message, 'error');
+    } finally {
+      btn.disabled=false; 
+      btn.textContent='Enregistrer';
     }
-    btn.disabled=false; btn.textContent='Enregistrer';
   };
 }
 
@@ -1064,6 +1150,7 @@ function renderAdminChauffeurs(app, c) {
     }
     
     try {
+      console.log('[Notify] Création notification pour:', notifTarget.prenom, notifTarget.nom);
       const r = await window.dataSdk.create({
         type: 'notification',
         notification_id: uid(),
@@ -1076,14 +1163,18 @@ function renderAdminChauffeurs(app, c) {
       });
       
       if (r.isOk) {
+        console.log('[Notify] ✅ Notification envoyée avec succès');
         showToast('Message envoyé à ' + notifTarget.prenom);
+        await new Promise(res => setTimeout(res, 300));
         notifPopup.classList.add('hidden');
         document.getElementById('notif-message').value = '';
         notifTarget = null;
       } else {
+        console.error('[Notify] Erreur création:', r.error);
         showToast('Erreur: ' + (r.error || 'Impossible d\'envoyer le message'),'error');
       }
     } catch (err) {
+      console.error('[Notify] Exception:', err.message);
       showToast('Erreur lors de l\'envoi: ' + err.message,'error');
     }
     
@@ -1198,6 +1289,10 @@ document.getElementById('ch-save').onclick = async () => {
 
       if (r.isOk) {
         showToast(editingCh ? 'Chauffeur modifié avec succès' : 'Chauffeur créé avec succès');
+        await new Promise(res => setTimeout(res, 200));
+        if (!editingCh) {
+          await syncExcelFile('user');
+        }
         form.classList.add('hidden');
         editingCh = null;
         render();
@@ -1638,7 +1733,8 @@ function renderChauffeurMain(app, c) {
               km_fin: 0,
               email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
             });
-            if (!histRes.isOk) console.warn('Erreur création historique:', histRes.error);
+            if (!histRes.isOk) console.warn('[Service] Erreur création historique:', histRes.error);
+            else console.log('[Service] Historique service créé');
           }
           
           APP.serviceState = {vehiculeId: veh.__backendId, startTime: now, kmDebut: kmDebut};
@@ -1720,12 +1816,16 @@ function renderChauffeurMain(app, c) {
             const serviceHistory = getServiceHistory();
             const lastService = serviceHistory.find(sh => sh.service_history_chauffeur_id === user.__backendId && !sh.service_history_fin);
             if (lastService) {
+              console.log('[Service] Mise à jour historique sérvice (fin)...');
               const histRes = await window.dataSdk.update({
                 ...lastService, 
                 service_history_fin: now, 
                 km_fin: kmFin
               });
-              if (!histRes.isOk) console.warn('Erreur mise à jour historique:', histRes.error);
+              if (!histRes.isOk) console.warn('[Service] Erreur mise à jour historique:', histRes.error);
+              else console.log('[Service] Historique service terminé');
+            } else {
+              console.warn('[Service] Aucun historique ouvert trouvé pour ce chauffeur');
             }
             
             APP.serviceState = null;
@@ -1767,14 +1867,23 @@ function renderChauffeurMain(app, c) {
       try {
         if (navigator.geolocation) {
           commune = await getCommune();
+          console.log('[TakeClient] Commune détectée:', commune);
         }
       } catch(e) {
-        console.log('Géolocalisation non disponible');
+        console.warn('[TakeClient] Géolocalisation non disponible:', e.message);
       }
       const now = new Date().toISOString();
       APP.courseState = {startTime:now, startCommune:commune};
-      await window.dataSdk.update({...user, course_state_active: JSON.stringify(APP.courseState)});
-      showToast(`Prise en charge à ${commune}`);
+      console.log('[TakeClient] Mise à jour course_state_active...');
+      const res = await window.dataSdk.update({...user, course_state_active: JSON.stringify(APP.courseState)});
+      if (res.isOk) {
+        console.log('[TakeClient] ✅ course_state_active mis à jour');
+        showToast(`Prise en charge à ${commune}`);
+      } else {
+        console.error('[TakeClient] Erreur update:', res.error);
+        showToast('Erreur: ' + (res.error || 'impossible de confirmer prise en charge'), 'error');
+      }
+      takeBtn.disabled=false; takeBtn.innerHTML='<i data-lucide="map-pin" style="width:22px;height:22px"></i> Prise en charge client';
       render();
     };
   }
@@ -1875,11 +1984,14 @@ function renderChauffeurMain(app, c) {
         });
         
         if(r.isOk) {
+          console.log('[Course] ✅ Course créée:', r.data ? r.data.__backendId : 'unknown');
           showToast(`Course enregistrée : ${prix.toFixed(2)} €`);
           APP.courseState = null;
           APP.courseEndData = null;
           const userRes = await window.dataSdk.update({...user, course_state_active:''});
-          if (!userRes.isOk) console.warn('Erreur reset course:', userRes.error);
+          if (!userRes.isOk) console.warn('[Course] Erreur reset course_state_active:', userRes.error);
+          else console.log('[Course] course_state_active réinitialisé');
+          
           document.getElementById('price-popup').classList.add('hidden');
           document.getElementById('course-price').value = '';
           document.getElementById('client-nom').value = '';
@@ -1887,10 +1999,12 @@ function renderChauffeurMain(app, c) {
           document.getElementById('montant-impaye').value = '';
           document.getElementById('client-nom-container').classList.add('hidden');
           document.getElementById('montant-impaye-container').classList.add('hidden');
+          
+          await new Promise(res => setTimeout(res, 300));
           render();
         } else {
-          console.error('Erreur création course:', r.error);
-          showToast('Erreur enregistrement','error');
+          console.error('[Course] Erreur création:', r.error);
+          showToast('Erreur enregistrement: ' + (r.error || 'inconnue'),'error');
         }
       } catch (err) {
         console.error('Erreur enregistrement course:', err);

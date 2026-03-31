@@ -92,6 +92,14 @@ window.dataSdk = {
     }, 3000); // Vérifie chaque 3 secondes
   },
 
+  async list() {
+    return {
+      isOk: true,
+      users: this.data.filter(d => d.type === 'user'),
+      vehicles: this.data.filter(d => d.type === 'vehicule')
+    };
+  },
+
   async create(item) {
     try {
       // On génère un ID unique pour que Redis ne s'emmêle pas les pinceaux
