@@ -33,6 +33,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { action, sessionID } = req.query;
+    
+    // Parser le body JSON manuellement (Vercel Functions ne le fait pas automatiquement)
+    let bodyData: any = {};
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
+      try {
+        bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      } catch (e) {
+        bodyData = {};
+      }
+    }
 
     if (req.method === 'GET') {
       // Récupérer une session utilisateur
@@ -63,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'POST') {
       // Créer une nouvelle session utilisateur
       if (action === 'create_session') {
-        const { user } = req.body;
+        const { user } = bodyData;
         if (!user || !user.sessionID) {
           await redis.quit();
           return res.status(400).json({ success: false, error: 'Missing user or sessionID' });
@@ -82,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Supprimer une session utilisateur
       if (action === 'delete_session') {
-        const { sessionID: delSessionID } = req.body;
+        const { sessionID: delSessionID } = bodyData;
         if (!delSessionID) {
           await redis.quit();
           return res.status(400).json({ success: false, error: 'Missing sessionID' });
@@ -98,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       
       // Sauvegarder/mettre à jour les données
-      const { data } = req.body;
+      const { data } = bodyData;
       if (!data) {
         await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing data' });
@@ -115,7 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'PUT') {
       // Ajouter/modifier un item
-      const { item, type } = req.body;
+      const { item, type } = bodyData;
       if (!item || !type) {
         await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing item or type' });
@@ -142,7 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === 'DELETE') {
       // Supprimer un item
-      const { id, type } = req.body;
+      const { id, type } = bodyData;
       if (!id || !type) {
         await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing id or type' });
