@@ -453,7 +453,7 @@ function render() {
   lucide.createIcons();
 }
 
-function renderLogin(app, c) {
+async function renderLogin(app, c) {
   const title = cfg('app_title');
   const subtitle = cfg('login_subtitle');
   app.innerHTML = `
@@ -494,18 +494,20 @@ function renderLogin(app, c) {
   const admins = getUsers().filter(u => u.role === 'admin');
   // Setup button always visible
 
-  const performLogin = () => {
+  const performLogin = async () => {
     const email = document.getElementById('login-email').value.trim();
     const pass = document.getElementById('login-pass').value;
     const user = getUsers().find(u => u.email === email && u.password === pass);
     if (!user) {
       const err = document.getElementById('login-error');
-      err.textContent = 'Identifiants incorrects'; err.classList.remove('hidden');
+      err.textContent = 'Identifiants incorrects';
+      err.classList.remove('hidden');
       return;
     }
     if (!user.active) {
       const err = document.getElementById('login-error');
-      err.textContent = 'Compte désactivé'; err.classList.remove('hidden');
+      err.textContent = 'Compte désactivé';
+      err.classList.remove('hidden');
       return;
     }
     APP.currentUser = user;

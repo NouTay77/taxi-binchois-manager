@@ -8,14 +8,13 @@ function getRedis() {
   if (!redis) {
     redis = new Redis(process.env.REDIS_URL as string, {
       retryStrategy: (times) => Math.min(times * 50, 2000),
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-      enableOfflineQueue: false,
+      maxRetriesPerRequest: 3, // Ne pas laisser à null pour Vercel
+      enableReadyCheck: true,
+      enableOfflineQueue: true, // INDISPENSABLE pour éviter le crash
       connectTimeout: 10000,
     });
 
     redis.on('error', (err: any) => console.error('Redis error:', err));
-    redis.on('connect', () => console.log('Redis connected'));
   }
   return redis;
 }
