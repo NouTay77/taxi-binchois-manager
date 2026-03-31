@@ -349,7 +349,7 @@ async function exportHistoriqueByEmail(type) {
       body: JSON.stringify({
         to: 'tayanenourrdine@gmail.com',
         subject: type === 'course' ? 'Historique des courses' : 'Historique des services',
-        message: `Bonjour,\n\nVeuillez trouver en pièce jointe l'historique ${type === 'course' ? 'des courses' : 'des services'}.\n\nCordialement,\nTaxi Binchois Manager`,
+        htmlContent: `<p>Bonjour,</p><p>Veuillez trouver en pièce jointe l'historique <strong>${type === 'course' ? 'des courses' : 'des services'}</strong>.</p><p>Cordialement,<br>Taxi Binchois Manager</p>`,
         attachmentName: filename,
         attachmentBase64: base64
       })
@@ -446,6 +446,34 @@ async function notifyAdmins(message, eventType = 'info') {
   } catch (err) {
     console.error('Erreur notification admin:', err);
   }
+}
+
+async function handleLogout() {
+  if (APP.currentUser && APP.currentUser.sessionID) {
+    try {
+      await fetch('/api/store?action=delete_session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionID: APP.currentUser.sessionID })
+      });
+    } catch(e) { console.error('Erreur session:', e); }
+  }
+  localStorage.removeItem('sessionID');
+  
+  if (APP.currentUser && APP.currentUser.role === 'chauffeur') {
+    const cleanName = ((APP.currentUser.prenom || '') + ' ' + (APP.currentUser.nom || '')).trim() || 'Chauffeur';
+    await notifyAdmins('⏹️ ' + cleanName + ' s\'est déconnecté', 'logout');
+    
+    const admins = getUsers().filter(a => a.role === 'admin');
+    if (admins.length > 0) {
+      await sendDailyRecap(cleanName, APP.currentUser.email, admins[0].email);
+    }
+  }
+  APP.currentUser = null;
+  APP.currentPage = 'login';
+  APP.serviceState = null;
+  APP.courseState = null;
+  render();
 }
 
 function cfg(key) {
@@ -671,47 +699,8 @@ function adminLayout(app, c, activePage, contentHTML) {
   app.querySelectorAll('.nav-btn').forEach(btn => {
     btn.onclick = () => { APP.currentPage = btn.dataset.page; render(); };
   });
-  const logout = async () => {
-    // Supprimer la session depuis Redis
-    if (APP.currentUser && APP.currentUser.sessionID) {
-      try {
-        await fetch('/api/store?action=delete_session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionID: APP.currentUser.sessionID
-          })
-        });
-      } catch(e) {
-        console.error('Erreur suppression session:', e);
-      }
-    }
-    // Supprimer le sessionID depuis localStorage
-    localStorage.removeItem('sessionID');
-    
-    // Envoyer une notification de déconnexion et le récapitulatif journalier
-    if (APP.currentUser && APP.currentUser.role === 'chauffeur') {
-      const chauffeurName = (APP.currentUser.prenom || '') + ' ' + (APP.currentUser.nom || '');
-      const cleanName = (chauffeurName.trim() || 'Chauffeur');
-      
-      // Notification de déconnexion
-      await notifyAdmins('⏹️ ' + cleanName + ' s\'est déconnecté', 'logout');
-      
-      // Envoyer le récapitulatif journalier si en service
-      const admins = getUsers().filter(a => a.role === 'admin');
-      if (admins.length > 0 && APP.currentUser.en_service) {
-        const chauffeurEmail = APP.currentUser.email;
-        await sendDailyRecap(cleanName, chauffeurEmail, admins[0].email);
-      }
-    }
-    APP.currentUser=null; 
-    APP.currentPage='login'; 
-    APP.serviceState=null; 
-    APP.courseState=null; 
-    render();
-  };
-  const lb = document.getElementById('logout-btn'); if(lb) lb.onclick = logout;
-  const lbm = document.getElementById('logout-btn-mobile'); if(lbm) lbm.onclick = logout;
+  const lb = document.getElementById('logout-btn'); if(lb) lb.onclick = handleLogout;
+  const lbm = document.getElementById('logout-btn-mobile'); if(lbm) lbm.onclick = handleLogout;
 }
 
 function renderAdminDashboard(app, c) {
@@ -1540,42 +1529,7 @@ function renderChauffeurMain(app, c) {
     }
   }
 
-  document.getElementById('ch-logout').onclick = async () => {
-    // Supprimer la session depuis Redis
-    if (APP.currentUser && APP.currentUser.sessionID) {
-      try {
-        await fetch('/api/store?action=delete_session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionID: APP.currentUser.sessionID
-          })
-        });
-      } catch(e) {
-        console.error('Erreur suppression session:', e);
-      }
-    }
-    // Supprimer le sessionID depuis localStorage
-    localStorage.removeItem('sessionID');
-    
-    // Envoyer une notification de déconnexion
-    if (APP.currentUser && APP.currentUser.role === 'chauffeur' && APP.allData.length < 999) {
-      const admins = getUsers().filter(a => a.role === 'admin');
-      admins.forEach(async (admin) => {
-        await window.dataSdk.create({
-          type: 'notification',
-          notification_id: uid(),
-          notification_from: APP.currentUser.prenom + ' ' + APP.currentUser.nom,
-          notification_to: admin.__backendId,
-          notification_message: APP.currentUser.prenom + ' ' + APP.currentUser.nom + ' s\'est déconnecté',
-          notification_timestamp: new Date().toISOString(),
-          notification_read: false,
-          email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
-        });
-      });
-    }
-    APP.currentUser=null; APP.currentPage='login'; APP.serviceState=null; APP.courseState=null; render();
-  };
+  document.getElementById('ch-logout').onclick = handleLogout;
 
   const startBtn = document.getElementById('start-service-btn');
   if (startBtn) {
@@ -1801,7 +1755,6 @@ function renderChauffeurMain(app, c) {
         if (navigator.geolocation) {
           commune = await getCommune();
         }
-        commune = await getCommune();
       } catch(e) {
         console.log('Géolocalisation non disponible, utilisation de "Inconnue"');
       }

@@ -8,7 +8,10 @@ window.dataSdk = {
     this.handler = dataHandler;
     try {
       // Charger les données UNIQUEMENT depuis Redis via sync-excel
-      const res = await fetch('/api/sync-excel', { timeout: 5000 });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch('/api/sync-excel', { signal: controller.signal });
+      clearTimeout(timeoutId);
       
       if (res.status === 503) {
         const err = await res.json();
@@ -51,7 +54,10 @@ window.dataSdk = {
     
     this.pollingInterval = setInterval(async () => {
       try {
-        const res = await fetch('/api/sync-excel', { timeout: 5000 });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch('/api/sync-excel', { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (res.ok) {
           const cloudData = await res.json();
           if (Array.isArray(cloudData)) {
@@ -149,12 +155,15 @@ window.dataSdk = {
       }
       
       // Sauvegarde OBLIGATOIRE dans Redis
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const response = await fetch('/api/sync-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.data),
-        timeout: 10000
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errText = await response.text();
