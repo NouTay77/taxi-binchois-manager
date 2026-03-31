@@ -16,8 +16,7 @@ function createRedisConnection() {
     },
     lazyConnect: true, // Retarder la connexion pour la gérer correctement
     keepAlive: 0, // Pas de keep-alive sur Vercel (éphémère)
-    family: 4, // IPv4 uniquement pour éviter les problèmes DNS
-  });
+  } as any);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
