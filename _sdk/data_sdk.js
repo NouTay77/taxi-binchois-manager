@@ -27,9 +27,9 @@ window.dataSdk = {
         this.lastSyncHash = JSON.stringify(this.data);
         console.log('SDK initialisé avec', this.data.length, 'records depuis Redis');
         
-        // Log spécifique pour les chauffeurs
-        const chauffeurs = this.data.filter(d => d.type === 'user' && d.role === 'chauffeur');
-        console.log('Liste des chauffeurs reçus de Redis:', chauffeurs);
+        // Log global des utilisateurs
+        const users = this.data.filter(d => d.type === 'user');
+        console.log('SDK Init - Utilisateurs:', users.length, '| Admins:', users.filter(u => u.role === 'admin').length);
       }
     } catch (e) {
       console.error("Erreur fatale lors du chargement Redis:", e);
@@ -71,8 +71,11 @@ window.dataSdk = {
             this.lastSyncHash = cloudHash;
             console.log('Sync Auto depuis Redis:', this.data.length, 'records');
             
-            const chauffeurs = this.data.filter(d => d.type === 'user' && d.role === 'chauffeur');
-            console.log('Mise à jour Redis - Chauffeurs:', chauffeurs);
+            const users = this.data.filter(d => d.type === 'user');
+            const adminCount = users.filter(u => u.role === 'admin').length;
+            console.log('Sync Auto Redis - Utilisateurs:', users.length, '| Admins:', adminCount);
+            
+            if (adminCount === 0) console.warn('⚠️ Alerte : Aucun Admin détecté dans APP.allData après polling !');
 
             if (this.handler?.onDataChanged) {
               try {

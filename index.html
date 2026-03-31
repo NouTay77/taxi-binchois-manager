@@ -60,6 +60,7 @@ let APP = {
   toasts: [],
   confirmDialog: null,
   editItem: null,
+  _isRestoring: false,
   serviceState: null,
   courseState: null,
   courseEndData: null,
@@ -220,8 +221,11 @@ function uid() { return Math.random().toString(36).substr(2,9); }
 
 const dataHandler = {
   onDataChanged(data) {
-    console.log('onDataChanged appelé avec', data.length, 'records');
     APP.allData = data || [];
+    const users = APP.allData.filter(d => d.type === 'user');
+    const admins = users.filter(u => u.role === 'admin');
+    console.log(`[DataUpdate] Total: ${data.length} | Users: ${users.length} | Admins: ${admins.length}`);
+
     if (APP.currentUser) {
       const fresh = data.find(d => d.type==='user' && d.email === APP.currentUser.email);
       if (fresh) {
@@ -364,7 +368,7 @@ async function exportHistoriqueByEmail(type) {
 async function syncExcelFile(type) {
   try {
     const data = type === 'user' 
-      ? APP.allData.filter(d => d.type === 'user' && d.role === 'chauffeur')
+      ? APP.allData.filter(d => d.type === 'user')
       : APP.allData.filter(d => d.type === 'vehicule');
     
     const response = await fetch('/api/sync-excel', {
@@ -480,6 +484,33 @@ function cfg(key) {
 function render() {
   const app = document.getElementById('app');
   if (!app) return;
+
+  // 1. Vérification de la session : Si un sessionID existe mais l'utilisateur n'est pas encore chargé
+  const savedSessionID = localStorage.getItem('sessionID');
+  if (!APP.currentUser && savedSessionID) {
+    // On affiche un écran de chargement technique pour éviter de flasher le login
+    app.innerHTML = `
+      <div class="h-full w-full flex items-center justify-center bg-night-900">
+        <div class="flex flex-col items-center gap-6">
+          <div class="w-16 h-16 border-4 border-taxi-500 border-t-transparent rounded-full animate-spin"></div>
+          <div class="text-center">
+            <p class="text-taxi-500 font-bold text-lg mb-1">Session détectée</p>
+            <p class="text-white/40 text-xs">Restauration en cours...</p>
+          </div>
+        </div>
+      </div>`;
+    
+    // Si la restauration n'est pas déjà en cours, on la force
+    if (!APP._isRestoring) {
+      initApp();
+    }
+    return;
+  }
+
+  // 2. Sécurité : Si on n'est pas sur la page de login mais qu'on a perdu l'utilisateur
+  if (!APP.currentUser && APP.currentPage !== 'login') {
+    APP.currentPage = 'login';
+  }
 
   const bg = cfg('bg_color');
   const surface = cfg('surface_color');
@@ -902,7 +933,6 @@ function renderAdminVehicules(app, c) {
       const r = await window.dataSdk.create(newV);
       if(r.isOk) { 
         showToast('Véhicule ajouté'); 
-        if (r.data) APP.allData.push(r.data);
         await syncExcelFile('vehicule'); 
         render();
       } else showToast('Erreur','error');
@@ -1162,7 +1192,6 @@ document.getElementById('ch-save').onclick = async () => {
         };
         r = await window.dataSdk.create(newData);
         if (r.isOk && r.data) {
-          APP.allData.push(r.data);
           await syncExcelFile('user');
         }
       }
