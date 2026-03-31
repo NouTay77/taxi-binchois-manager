@@ -32,34 +32,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const redis = createRedisConnection();
 
   try {
-    const { action, sessionID } = req.query;
+    const action = req.query.action as string;
+    const sessionID = req.query.sessionID as string;
     
-    // Parser le body JSON manuellement (Vercel Functions peut l'envoyer comme Buffer, string, ou object)
     let bodyData: any = {};
     if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
       try {
         if (req.body) {
           if (typeof req.body === 'string') {
-            bodyData = JSON.parse(req.body);
+            bodyData = JSON.parse(req.body.trim());
           } else if (Buffer.isBuffer(req.body)) {
-            bodyData = JSON.parse(req.body.toString());
+            bodyData = JSON.parse(req.body.toString().trim());
           } else if (typeof req.body === 'object') {
             bodyData = req.body;
           }
         }
       } catch (e) {
-        console.error('Body parse error:', e, 'body type:', typeof req.body, 'body:', req.body);
+        console.error('JSON Parse error:', e);
         bodyData = {};
       }
     }
-
-    console.log('Store API call:', { action, sessionID, method: req.method, bodyDataKeys: Object.keys(bodyData), bodyDataUser: bodyData.user ? 'exists' : 'missing' });
 
     if (req.method === 'GET') {
       // Récupérer une session utilisateur
       if (sessionID) {
         const sessionData = await redis.get(`session:${sessionID}`);
-        await redis.quit();
         if (!sessionData) {
           return res.status(404).json({
             success: false,
@@ -74,7 +71,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Récupérer toutes les données
       const data = await redis.get('app_data');
-      await redis.quit();
       return res.status(200).json({
         success: true,
         data: data ? JSON.parse(data) : []
@@ -86,13 +82,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (action === 'create_session') {
         const { user } = bodyData;
         if (!user || !user.sessionID) {
-          await redis.quit();
           return res.status(400).json({ success: false, error: 'Missing user or sessionID' });
         }
         
         // Sauvegarder la session avec TTL de 30j (2592000 secondes)
         await redis.set(`session:${user.sessionID}`, JSON.stringify(user), 'EX', 2592000);
-        await redis.quit();
         
         return res.status(200).json({
           success: true,
@@ -105,12 +99,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (action === 'delete_session') {
         const { sessionID: delSessionID } = bodyData;
         if (!delSessionID) {
-          await redis.quit();
           return res.status(400).json({ success: false, error: 'Missing sessionID' });
         }
         
         await redis.del(`session:${delSessionID}`);
-        await redis.quit();
         
         return res.status(200).json({
           success: true,
@@ -121,12 +113,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Sauvegarder/mettre à jour les données
       const { data } = bodyData;
       if (!data) {
-        await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing data' });
       }
       
       await redis.set('app_data', JSON.stringify(data), 'EX', 86400 * 30); // 30 jours
-      await redis.quit();
       
       return res.status(200).json({
         success: true,
@@ -138,7 +128,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Ajouter/modifier un item
       const { item, type } = bodyData;
       if (!item || !type) {
-        await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing item or type' });
       }
 
@@ -153,7 +142,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       await redis.set('app_data', JSON.stringify(allData), 'EX', 86400 * 30);
-      await redis.quit();
 
       return res.status(200).json({
         success: true,
@@ -165,7 +153,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Supprimer un item
       const { id, type } = bodyData;
       if (!id || !type) {
-        await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing id or type' });
       }
 
@@ -174,7 +161,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       const filtered = allData.filter((d: any) => !(d.type === type && d.__backendId === id));
       await redis.set('app_data', JSON.stringify(filtered), 'EX', 86400 * 30);
-      await redis.quit();
 
       return res.status(200).json({
         success: true,
@@ -182,14 +168,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    await redis.quit();
-    res.status(400).json({ success: false, error: 'Invalid method' });
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (err: any) {
-    try { await redis.quit(); } catch (e) {}
     console.error('Store API error:', err);
     return res.status(500).json({
       success: false,
       error: err.message || 'Server error'
     });
+  } finally {
+    if (redis) await redis.quit();
   }
 }
