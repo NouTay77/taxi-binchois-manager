@@ -5,11 +5,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Crée une NOUVELLE connexion Redis pour chaque requête (stateless Vercel)
 function createRedisConnection() {
   return new Redis(process.env.REDIS_URL || '', {
-    maxRetriesPerRequest: null,
-    enableOfflineQueue: false,
+    maxRetriesPerRequest: 3, // On limite les essais pour éviter de bloquer Vercel
+    enableOfflineQueue: true, // IMPORTANT : On autorise la file d'attente
     connectTimeout: 10000,
     commandTimeout: 5000,
-    retryStrategy: (times) => Math.min(times * 50, 500),
+    retryStrategy: (times) => Math.min(times * 50, 2000),
   });
 }
 
