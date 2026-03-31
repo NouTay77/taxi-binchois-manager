@@ -665,7 +665,7 @@ function renderLogin(app, c) {
           btn.disabled = false;
           btn.textContent = 'Créer un admin';
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Exception lors de la création:', err);
       showToast('Erreur base de données: ' + err.message,'error');
       btn.disabled = false;
