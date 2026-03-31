@@ -4,10 +4,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Redis est OBLIGATOIRE
 const redis = new Redis(process.env.REDIS_URL || '', {
-  retryStrategy: (times) => Math.min(times * 50, 2000),
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: false,
-  enableOfflineQueue: false,
+  retryStrategy: (times) => Math.min(times * 100, 3000),
+  maxRetriesPerRequest: null,
+  enableReadyCheck: true,
+  enableOfflineQueue: true,
+  connectTimeout: 5000,
+  lazyConnect: false,
 });
 
 redis.on('error', (err) => {
