@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="fr" class="h-full">
  <head>
   <meta charset="UTF-8">
@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Playfair+Display:wght@700;800&amp;display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="favicon.png">
   <script>
-    // Gestionnaire global pour les erreurs non capturées
+    // Gestionnaire global pour les erreurs non capturÃ©es
     window.addEventListener('error', (event) => {
       console.error('Erreur globale:', event.error);
       const app = document.getElementById('app');
@@ -29,9 +29,9 @@
       }
     });
     
-    // Gestionnaire pour les promesses rejetées non gérées
+    // Gestionnaire pour les promesses rejetÃ©es non gÃ©rÃ©es
     window.addEventListener('unhandledrejection', (event) => {
-      console.error('Promesse rejetée non gérée:', event.reason);
+      console.error('Promesse rejetÃ©e non gÃ©rÃ©e:', event.reason);
       event.preventDefault();
       const app = document.getElementById('app');
       if (app) {
@@ -165,11 +165,11 @@ function showDailyRecap(totalRecette, nbCourses, chauffeurName) {
       <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background:#10B98120">
         <i data-lucide="check-circle" style="width:32px;height:32px;color:#10B981"></i>
       </div>
-      <h3 class="font-bold text-xl mb-2">Service terminé !</h3>
+      <h3 class="font-bold text-xl mb-2">Service terminÃ© !</h3>
       <p class="text-sm opacity-60 mb-6">${chauffeurName}</p>
       <div class="bg-night-900/50 rounded-xl p-4 mb-6">
-        <p class="text-xs opacity-50 mb-2">Récette du jour</p>
-        <p class="text-3xl font-bold" style="color:#E6B800">${totalRecette.toFixed(2)} €</p>
+        <p class="text-xs opacity-50 mb-2">RÃ©cette du jour</p>
+        <p class="text-3xl font-bold" style="color:#E6B800">${totalRecette.toFixed(2)} â‚¬</p>
         <p class="text-xs opacity-60 mt-3">${nbCourses} course${nbCourses>1?'s':''}</p>
       </div>
       <button id="recap-close-btn" class="w-full px-4 py-3 rounded-lg font-semibold transition hover:opacity-90" style="background:#E6B800;color:#0A0F1C">Fermer</button>
@@ -191,7 +191,7 @@ async function getCommune() {
       if (!resolved) {
         resolved = true;
         clearTimeout(timeoutId);
-        showToast('Localisation : délai dépassé', 'error');
+        showToast('Localisation : dÃ©lai dÃ©passÃ©', 'error');
         resolve('Inconnue');
       }
     }, 15000);
@@ -215,7 +215,7 @@ async function getCommune() {
           const response = await fetch(url);
 
           if (!response.ok) {
-            resolve('Localisation détectée');
+            resolve('Localisation dÃ©tectÃ©e');
             return;
           }
 
@@ -228,11 +228,11 @@ async function getCommune() {
             address.village || 
             address.municipality || 
             address.county || 
-            'Localisation détectée';
+            'Localisation dÃ©tectÃ©e';
 
           resolve(commune);
         } catch (error) {
-          resolve('Localisation détectée');
+          resolve('Localisation dÃ©tectÃ©e');
         }
       },
       (error) => {
@@ -241,11 +241,11 @@ async function getCommune() {
         clearTimeout(timeoutId);
 
         if (error.code === 1) {
-          showToast('Permission de localisation refusée', 'error');
+          showToast('Permission de localisation refusÃ©e', 'error');
         } else if (error.code === 2) {
           showToast('Position non disponible', 'error');
         } else if (error.code === 3) {
-          showToast('Localisation : délai dépassé', 'error');
+          showToast('Localisation : dÃ©lai dÃ©passÃ©', 'error');
         } else {
           showToast('Erreur localisation', 'error');
         }
@@ -262,7 +262,7 @@ function uid() { return Math.random().toString(36).substr(2,9); }
 
 const dataHandler = {
   onDataChanged(data) {
-    console.log('onDataChanged appelé avec', data.length, 'records');
+    console.log('onDataChanged appelÃ© avec', data.length, 'records');
     APP.allData = data || [];
     if (APP.currentUser) {
       const fresh = data.find(d => d.type==='user' && d.email === APP.currentUser.email);
@@ -282,12 +282,12 @@ const dataHandler = {
 };
 
 async function initApp() {
-  console.log('Initialisation du SDK données...');
+  console.log('Initialisation du SDK donnÃ©es...');
   try {
     const r = await window.dataSdk.init(dataHandler);
     
     if (r.isOk) {
-      console.log('SDK données initialisé avec succès');
+      console.log('SDK donnÃ©es initialisÃ© avec succÃ¨s');
     } else {
       console.error('Erreur init SDK:', r.error);
     }
@@ -295,7 +295,7 @@ async function initApp() {
     console.error('Exception lors de initApp:', err);
   }
   
-  // TOUJOURS faire le rendu initial, même s'il y a une erreur
+  // TOUJOURS faire le rendu initial, mÃªme s'il y a une erreur
   try {
     render();
   } catch (renderErr) {
@@ -303,7 +303,7 @@ async function initApp() {
     document.getElementById('app').innerHTML = `
       <div class="h-full w-full flex items-center justify-center p-4 bg-red-900">
         <div class="text-center">
-          <h1 class="text-2xl font-bold text-white mb-4">Erreur au démarrage</h1>
+          <h1 class="text-2xl font-bold text-white mb-4">Erreur au dÃ©marrage</h1>
           <p class="text-white mb-4">${renderErr.message || 'Une erreur inconnue est survenue'}</p>
           <button onclick="location.reload()" class="px-4 py-2 bg-white text-red-900 font-semibold rounded">Recharger</button>
         </div>
@@ -312,7 +312,7 @@ async function initApp() {
   }
 }
 
-// Attendre que le DOM soit prêt avant d'initialiser
+// Attendre que le DOM soit prÃªt avant d'initialiser
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
@@ -358,19 +358,19 @@ async function exportHistoriqueByEmail(type) {
         return {
           'Chauffeur': item.chauffeur_nom || '',
           'Prise en charge': item.heure_prise_en_charge || '',
-          'Commune départ': item.commune_prise_en_charge || '',
+          'Commune dÃ©part': item.commune_prise_en_charge || '',
           'Fin course': item.heure_fin_course || '',
-          'Commune arrivée': item.commune_fin_course || '',
+          'Commune arrivÃ©e': item.commune_fin_course || '',
           'Prix': item.prix || 0,
-          'Payé': item.client_paye ? 'Oui' : 'Non',
-          'Montant impayé': item.montant_impaye || 0
+          'PayÃ©': item.client_paye ? 'Oui' : 'Non',
+          'Montant impayÃ©': item.montant_impaye || 0
         };
       } else if (type === 'service_history') {
         return {
           'Chauffeur': item.chauffeur_nom || '',
-          'Début service': item.date_debut_service || '',
+          'DÃ©but service': item.date_debut_service || '',
           'Fin service': item.date_fin_service || '',
-          'Km début': item.km_debut || 0,
+          'Km dÃ©but': item.km_debut || 0,
           'Km fin': item.km_fin || 0
         };
       }
@@ -394,13 +394,13 @@ async function exportHistoriqueByEmail(type) {
       body: JSON.stringify({
         to: 'tayanenourrdine@gmail.com',
         subject: type === 'course' ? 'Historique des courses' : 'Historique des services',
-        message: `Bonjour,\n\nVeuillez trouver en pièce jointe l'historique ${type === 'course' ? 'des courses' : 'des services'}.\n\nCordialement,\nTaxi Binchois Manager`,
+        message: `Bonjour,\n\nVeuillez trouver en piÃ¨ce jointe l'historique ${type === 'course' ? 'des courses' : 'des services'}.\n\nCordialement,\nTaxi Binchois Manager`,
         attachmentName: filename,
         attachmentBase64: base64
       })
     });
     if (response.ok) {
-      showToast(`Export envoyé par mail avec succès`, 'success');
+      showToast(`Export envoyÃ© par mail avec succÃ¨s`, 'success');
     } else {
       showToast(`Erreur lors de l'envoi: ${response.statusText}`, 'error');
     }
@@ -422,7 +422,7 @@ async function syncExcelFile(type) {
     });
     
     if (response.ok) {
-      console.log(`Fichier ${type === 'user' ? 'Chauffeurs' : 'Vehicules'}.xlsx synchronisé`);
+      console.log(`Fichier ${type === 'user' ? 'Chauffeurs' : 'Vehicules'}.xlsx synchronisÃ©`);
     } else {
       console.error('Erreur sync Excel:', response.statusText);
     }
@@ -461,12 +461,12 @@ async function sendDailyRecap(chauffeurName, chauffeurEmail, adminEmail) {
     });
     
     if (response.ok) {
-      console.log('Récapitulatif journalier envoyé');
+      console.log('RÃ©capitulatif journalier envoyÃ©');
     } else {
-      console.error('Erreur envoi récap:', response.statusText);
+      console.error('Erreur envoi rÃ©cap:', response.statusText);
     }
   } catch (err) {
-    console.error('Erreur récap:', err);
+    console.error('Erreur rÃ©cap:', err);
   }
 }
 
@@ -479,7 +479,7 @@ async function notifyAdmins(message, eventType = 'info') {
       await window.dataSdk.create({
         type: 'notification',
         notification_id: uid(),
-        notification_from: 'Système',
+        notification_from: 'SystÃ¨me',
         notification_to: admin.__backendId,
         notification_message: message,
         notification_type: eventType,
@@ -534,7 +534,7 @@ function render() {
           <div class="text-center">
             <h1 class="text-2xl font-bold text-white mb-4">Erreur d'affichage</h1>
             <p class="text-white mb-2">${err.message || 'Une erreur est survenue'}</p>
-            <p class="text-sm text-white opacity-70 mb-4">Vérifiez la console pour plus de détails</p>
+            <p class="text-sm text-white opacity-70 mb-4">VÃ©rifiez la console pour plus de dÃ©tails</p>
             <button onclick="location.reload()" class="px-4 py-2 bg-white text-red-900 font-semibold rounded">Recharger</button>
           </div>
         </div>
@@ -565,7 +565,7 @@ function renderLogin(app, c) {
           <div class="mb-6">
             <label class="block text-sm font-medium mb-1 opacity-80">Mot de passe</label>
             <div class="relative">
-              <input id="login-pass" type="password" class="w-full px-4 py-3 rounded-xl text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}" placeholder="••••••••">
+              <input id="login-pass" type="password" class="w-full px-4 py-3 rounded-xl text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
               <button type="button" id="toggle-pass" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:opacity-70 transition" style="color:${c.text}"><i data-lucide="eye" style="width:16px;height:16px"></i></button>
             </div>
           </div>
@@ -574,7 +574,7 @@ function renderLogin(app, c) {
           </button>
           <p id="login-error" class="mt-3 text-red-400 text-sm text-center hidden"></p>
           <button id="setup-btn" class="mt-6 w-full py-2 rounded-xl text-sm font-medium transition hover:opacity-80" style="background:${c.secondary};color:${c.text}" ${getUsers().filter(u => u.role === 'admin').length > 0 ? 'hidden' : ''}>
-            Créer un admin
+            CrÃ©er un admin
         </div>
 
       </div>
@@ -595,7 +595,7 @@ function renderLogin(app, c) {
     }
     if (!user.active) {
       const err = document.getElementById('login-error');
-      err.textContent = 'Compte désactivé'; err.classList.remove('hidden');
+      err.textContent = 'Compte dÃ©sactivÃ©'; err.classList.remove('hidden');
       return;
     }
     APP.currentUser = user;
@@ -608,7 +608,7 @@ function renderLogin(app, c) {
     // Envoyer une notification de connexion aux admins
     if (user.role === 'chauffeur') {
       const userName = ((user.prenom || '') + ' ' + (user.nom || '')).trim() || 'Chauffeur';
-      await notifyAdmins('✅ ' + userName + ' s\'est connecté', 'login');
+      await notifyAdmins('âœ… ' + userName + ' s\'est connectÃ©', 'login');
     }
     render();
   };
@@ -639,10 +639,10 @@ function renderLogin(app, c) {
     
     const btn = document.getElementById('setup-btn');
     btn.disabled = true; 
-    btn.textContent = 'Création...';
+    btn.textContent = 'CrÃ©ation...';
     
     try {
-      // Création de l'admin
+      // CrÃ©ation de l'admin
       const res = await window.dataSdk.create({
           type:'user',
           email,
@@ -656,27 +656,27 @@ function renderLogin(app, c) {
       });
       
       if (res.isOk) {
-          showToast('Admin créé dans la base de données !');
+          showToast('Admin crÃ©Ã© dans la base de donnÃ©es !');
           // On attend 2 secondes pour laisser Redis se synchroniser
           setTimeout(() => { location.reload(); }, 2000);
       } else {
-          showToast('Erreur: ' + (res.error || 'Impossible de créer l\'admin'),'error');
-          console.error('Erreur création admin:', res.error);
+          showToast('Erreur: ' + (res.error || 'Impossible de crÃ©er l\'admin'),'error');
+          console.error('Erreur crÃ©ation admin:', res.error);
           btn.disabled = false;
-          btn.textContent = 'Créer un admin';
+          btn.textContent = 'CrÃ©er un admin';
       }
     } catch (err) {
-      console.error('Exception lors de la création:', err);
-      showToast('Erreur base de données: ' + err.message,'error');
+      console.error('Exception lors de la crÃ©ation:', err);
+      showToast('Erreur base de donnÃ©es: ' + err.message,'error');
       btn.disabled = false;
-      btn.textContent = 'Créer un admin';
+      btn.textContent = 'CrÃ©er un admin';
     }
   };
 
   function adminLayout(app, c, activePage, contentHTML) {
   const navItems = [
     {id:'admin-dashboard',icon:'layout-dashboard',label:'Tableau de bord'},
-    {id:'admin-vehicules',icon:'car',label:'Véhicules'},
+    {id:'admin-vehicules',icon:'car',label:'VÃ©hicules'},
     {id:'admin-chauffeurs',icon:'users',label:'Chauffeurs'},
     {id:'admin-services',icon:'clock',label:'Historique services'},
     {id:'admin-historique',icon:'history',label:'Historique courses'},
@@ -700,7 +700,7 @@ function renderLogin(app, c) {
       <div class="flex-1 hidden lg:block"></div>
       <div class="hidden lg:block mt-auto pt-4 border-t px-2" style="border-color:${c.secondary}">
         <p class="text-xs opacity-50">${APP.currentUser?.email}</p>
-        <button id="logout-btn" class="mt-2 text-xs font-medium opacity-60 hover:opacity-100 flex items-center gap-1" style="color:${c.primary}"><i data-lucide="log-out" style="width:14px;height:14px"></i> Déconnexion</button>
+        <button id="logout-btn" class="mt-2 text-xs font-medium opacity-60 hover:opacity-100 flex items-center gap-1" style="color:${c.primary}"><i data-lucide="log-out" style="width:14px;height:14px"></i> DÃ©connexion</button>
       </div>
       <button id="logout-btn-mobile" class="lg:hidden flex items-center gap-2 px-4 py-3 rounded-xl text-sm opacity-60 hover:opacity-100 flex-shrink-0" style="color:${c.primary}"><i data-lucide="log-out" style="width:16px;height:16px"></i></button>
     </nav>
@@ -713,15 +713,15 @@ function renderLogin(app, c) {
     btn.onclick = () => { APP.currentPage = btn.dataset.page; render(); };
   });
   const logout = async () => {
-    // Envoyer une notification de déconnexion et le récapitulatif journalier
+    // Envoyer une notification de dÃ©connexion et le rÃ©capitulatif journalier
     if (APP.currentUser && APP.currentUser.role === 'chauffeur') {
       const chauffeurName = (APP.currentUser.prenom || '') + ' ' + (APP.currentUser.nom || '');
       const cleanName = (chauffeurName.trim() || 'Chauffeur');
       
-      // Notification de déconnexion
-      await notifyAdmins('⏹️ ' + cleanName + ' s\'est déconnecté', 'logout');
+      // Notification de dÃ©connexion
+      await notifyAdmins('â¹ï¸ ' + cleanName + ' s\'est dÃ©connectÃ©', 'logout');
       
-      // Envoyer le récapitulatif journalier si en service
+      // Envoyer le rÃ©capitulatif journalier si en service
       const admins = getUsers().filter(a => a.role === 'admin');
       if (admins.length > 0 && APP.currentUser.en_service) {
         const chauffeurEmail = APP.currentUser.email;
@@ -743,7 +743,7 @@ function renderAdminDashboard(app, c) {
   const users = getUsers().filter(u => u.role === 'chauffeur');
   const courses = getCourses();
   const enService = users.filter(u => u.en_service);
-  const vOccupes = vehicules.filter(v => v.statut_vehicule === 'occupé');
+  const vOccupes = vehicules.filter(v => v.statut_vehicule === 'occupÃ©');
   const today = new Date().toLocaleDateString('fr-BE');
   const todayCourses = courses.filter(cr => cr.heure_prise_en_charge && new Date(cr.heure_prise_en_charge).toLocaleDateString('fr-BE') === today);
   const todayRevenue = todayCourses.filter(cr => cr.client_paye).reduce((s,cr) => s + (cr.prix||0), 0);
@@ -752,10 +752,10 @@ function renderAdminDashboard(app, c) {
   const adminsEnService = getUsers().filter(u => u.role === 'admin' && u.en_service);
 
   const stats = [
-    {icon:'car',label:'Véhicules',value:vehicules.length,sub:`${vOccupes.length} occupé(s)`,color:'#3B82F6'},
+    {icon:'car',label:'VÃ©hicules',value:vehicules.length,sub:`${vOccupes.length} occupÃ©(s)`,color:'#3B82F6'},
     {icon:'users',label:'Chauffeurs',value:users.length,sub:`${enService.length} en service`,color:'#10B981'},
-    {icon:'map-pin',label:"Courses aujourd'hui",value:todayCourses.length,sub:`${todayRevenue.toFixed(2)} € payé`,color:c.primary},
-    {icon:'alert-circle',label:'Impayés du jour',value:todayUnpaid.toFixed(2)+' €',sub:todayCourses.filter(cr=>!cr.client_paye).length+' course(s)',color:'#F59E0B'},
+    {icon:'map-pin',label:"Courses aujourd'hui",value:todayCourses.length,sub:`${todayRevenue.toFixed(2)} â‚¬ payÃ©`,color:c.primary},
+    {icon:'alert-circle',label:'ImpayÃ©s du jour',value:todayUnpaid.toFixed(2)+' â‚¬',sub:todayCourses.filter(cr=>!cr.client_paye).length+' course(s)',color:'#F59E0B'},
   ];
 
   const content = `
@@ -779,9 +779,9 @@ function renderAdminDashboard(app, c) {
           const v = vehicules.find(v => v.__backendId === u.vehicule_id);
           const isCourseActive = u.course_state_active ? true : false;
           const statusColor = isCourseActive ? '#EF4444' : '#10B981';
-          const statusLabel = isCourseActive ? 'Occupé' : 'Libre';
+          const statusLabel = isCourseActive ? 'OccupÃ©' : 'Libre';
           return `<div class="flex items-center justify-between px-4 py-3 rounded-xl" style="background:${c.bg}">
-            <div class="flex-1"><span class="font-medium">${u.prenom} ${u.nom} ${u.role === 'admin' ? '(Admin)' : ''}</span><p class="text-xs opacity-50 mt-1">Début: ${formatTime(u.date_debut_service)}</p></div>
+            <div class="flex-1"><span class="font-medium">${u.prenom} ${u.nom} ${u.role === 'admin' ? '(Admin)' : ''}</span><p class="text-xs opacity-50 mt-1">DÃ©but: ${formatTime(u.date_debut_service)}</p></div>
             <div class="text-sm opacity-70 flex-1">${v ? v.immatriculation + ' - ' + v.marque + ' ' + v.modele : 'N/A'}</div>
             <span class="px-3 py-1 rounded-full text-xs font-medium" style="background:${statusColor}20;color:${statusColor}">${statusLabel}</span>
           </div>`;
@@ -809,14 +809,14 @@ function renderAdminDashboard(app, c) {
                 <p class="font-semibold mb-2">${name}</p>
                 <div class="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p class="opacity-60">Payé</p>
-                    <p class="font-bold" style="color:#10B981">${data.paye.toFixed(2)} €</p>
+                    <p class="opacity-60">PayÃ©</p>
+                    <p class="font-bold" style="color:#10B981">${data.paye.toFixed(2)} â‚¬</p>
                     <p class="text-xs opacity-50">${data.countPaye} course${data.countPaye > 1 ? 's' : ''}</p>
                   </div>
                   ${data.impaye > 0 ? `
                   <div>
-                    <p class="opacity-60">Impayé</p>
-                    <p class="font-bold" style="color:#F59E0B">${data.impaye.toFixed(2)} €</p>
+                    <p class="opacity-60">ImpayÃ©</p>
+                    <p class="font-bold" style="color:#F59E0B">${data.impaye.toFixed(2)} â‚¬</p>
                     <p class="text-xs opacity-50">${data.countImpaye} course${data.countImpaye > 1 ? 's' : ''}</p>
                   </div>
                   ` : ''}
@@ -827,7 +827,7 @@ function renderAdminDashboard(app, c) {
         }</div>`}
     </div>
     <div class="rounded-2xl p-5" style="background:${c.surface};border:1px solid ${c.secondary}">
-      <h2 class="font-semibold text-lg mb-4">Gestion des données</h2>
+      <h2 class="font-semibold text-lg mb-4">Gestion des donnÃ©es</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium mb-2">Historique courses</label>
@@ -854,17 +854,17 @@ function renderAdminVehicules(app, c) {
 
   const content = `
     <div class="flex items-center justify-between mb-6">
-      <h1 class="font-display text-2xl font-bold" style="color:${c.primary}">Véhicules</h1>
+      <h1 class="font-display text-2xl font-bold" style="color:${c.primary}">VÃ©hicules</h1>
       <button id="add-vehicule-btn" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition hover:opacity-90" style="background:${c.primary};color:${c.bg}">
         <i data-lucide="plus" style="width:16px;height:16px"></i> Ajouter
       </button>
     </div>
     <div id="vehicule-form" class="hidden rounded-2xl p-5 mb-6 fade-in" style="background:${c.surface};border:1px solid ${c.secondary}">
-      <h3 class="font-semibold mb-4" id="vehicule-form-title">Nouveau véhicule</h3>
+      <h3 class="font-semibold mb-4" id="vehicule-form-title">Nouveau vÃ©hicule</h3>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div><label class="block text-xs font-medium mb-1 opacity-70">Immatriculation</label><input id="v-immat" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"></div>
         <div><label class="block text-xs font-medium mb-1 opacity-70">Marque</label><input id="v-marque" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"></div>
-        <div><label class="block text-xs font-medium mb-1 opacity-70">Modèle</label><input id="v-modele" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"></div>
+        <div><label class="block text-xs font-medium mb-1 opacity-70">ModÃ¨le</label><input id="v-modele" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"></div>
       </div>
       <div class="flex gap-3">
         <button id="v-save" class="px-5 py-2 rounded-lg text-sm font-semibold transition hover:opacity-90" style="background:${c.primary};color:${c.bg}">Enregistrer</button>
@@ -872,12 +872,12 @@ function renderAdminVehicules(app, c) {
       </div>
     </div>
     <div class="space-y-3">
-      ${vehicules.length===0?`<p class="opacity-50 text-sm">Aucun véhicule</p>`:''}
+      ${vehicules.length===0?`<p class="opacity-50 text-sm">Aucun vÃ©hicule</p>`:''}
       ${vehicules.map(v => `
         <div class="flex items-center justify-between px-5 py-4 rounded-2xl slide-in" style="background:${c.surface};border:1px solid ${c.secondary}">
           <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:${v.statut_vehicule==='occupé'?'#EF444420':'#10B98120'}">
-              <i data-lucide="car" style="width:18px;height:18px;color:${v.statut_vehicule==='occupé'?'#EF4444':'#10B981'}"></i>
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:${v.statut_vehicule==='occupÃ©'?'#EF444420':'#10B98120'}">
+              <i data-lucide="car" style="width:18px;height:18px;color:${v.statut_vehicule==='occupÃ©'?'#EF4444':'#10B981'}"></i>
             </div>
             <div>
               <p class="font-semibold">${v.immatriculation}</p>
@@ -885,7 +885,7 @@ function renderAdminVehicules(app, c) {
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <span class="px-3 py-1 rounded-full text-xs font-medium" style="background:${v.statut_vehicule==='occupé'?'#EF444420':'#10B98120'};color:${v.statut_vehicule==='occupé'?'#EF4444':'#10B981'}">${v.statut_vehicule||'libre'}</span>
+            <span class="px-3 py-1 rounded-full text-xs font-medium" style="background:${v.statut_vehicule==='occupÃ©'?'#EF444420':'#10B98120'};color:${v.statut_vehicule==='occupÃ©'?'#EF4444':'#10B981'}">${v.statut_vehicule||'libre'}</span>
             <button class="edit-v-btn p-2 rounded-lg hover:opacity-80 transition" style="background:${c.secondary}" data-id="${v.__backendId}"><i data-lucide="edit" style="width:14px;height:14px"></i></button>
             <button class="del-v-btn p-2 rounded-lg hover:opacity-80 transition bg-red-600/20 text-red-400" data-id="${v.__backendId}"><i data-lucide="trash-2" style="width:14px;height:14px"></i></button>
           </div>
@@ -898,7 +898,7 @@ function renderAdminVehicules(app, c) {
 
   let editingV = null;
   const form = document.getElementById('vehicule-form');
-  document.getElementById('add-vehicule-btn').onclick = () => { editingV=null; form.classList.remove('hidden'); document.getElementById('vehicule-form-title').textContent='Nouveau véhicule'; document.getElementById('v-immat').value=''; document.getElementById('v-marque').value=''; document.getElementById('v-modele').value=''; };
+  document.getElementById('add-vehicule-btn').onclick = () => { editingV=null; form.classList.remove('hidden'); document.getElementById('vehicule-form-title').textContent='Nouveau vÃ©hicule'; document.getElementById('v-immat').value=''; document.getElementById('v-marque').value=''; document.getElementById('v-modele').value=''; };
   document.getElementById('v-cancel').onclick = () => form.classList.add('hidden');
 
   document.querySelectorAll('.edit-v-btn').forEach(btn => {
@@ -907,7 +907,7 @@ function renderAdminVehicules(app, c) {
       if(!v) return;
       editingV = v;
       form.classList.remove('hidden');
-      document.getElementById('vehicule-form-title').textContent='Modifier véhicule';
+      document.getElementById('vehicule-form-title').textContent='Modifier vÃ©hicule';
       document.getElementById('v-immat').value = v.immatriculation;
       document.getElementById('v-marque').value = v.marque;
       document.getElementById('v-modele').value = v.modele;
@@ -918,9 +918,9 @@ function renderAdminVehicules(app, c) {
     btn.onclick = () => {
       const v = vehicules.find(x => x.__backendId === btn.dataset.id);
       if(!v) return;
-      showConfirm(`Supprimer le véhicule ${v.immatriculation} ?`, async () => {
+      showConfirm(`Supprimer le vÃ©hicule ${v.immatriculation} ?`, async () => {
         const r = await window.dataSdk.delete(v);
-        if(r.isOk) showToast('Véhicule supprimé'); else showToast('Erreur','error');
+        if(r.isOk) showToast('VÃ©hicule supprimÃ©'); else showToast('Erreur','error');
       });
     };
   });
@@ -935,11 +935,11 @@ function renderAdminVehicules(app, c) {
     if(editingV) {
       const updated = {...editingV, immatriculation:immat, marque, modele};
       const r = await window.dataSdk.update(updated);
-      if(r.isOk) { showToast('Véhicule modifié'); await syncExcelFile('vehicule'); } else showToast('Erreur','error');
+      if(r.isOk) { showToast('VÃ©hicule modifiÃ©'); await syncExcelFile('vehicule'); } else showToast('Erreur','error');
     } else {
-      if(APP.allData.length >= 999) { showToast('Limite de données atteinte','error'); btn.disabled=false; btn.textContent='Enregistrer'; return; }
+      if(APP.allData.length >= 999) { showToast('Limite de donnÃ©es atteinte','error'); btn.disabled=false; btn.textContent='Enregistrer'; return; }
       const r = await window.dataSdk.create({type:'vehicule',immatriculation:immat,marque,modele,statut_vehicule:'libre',email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''});
-      if(r.isOk) { showToast('Véhicule ajouté'); await syncExcelFile('vehicule'); } else showToast('Erreur','error');
+      if(r.isOk) { showToast('VÃ©hicule ajoutÃ©'); await syncExcelFile('vehicule'); } else showToast('Erreur','error');
     }
     btn.disabled=false; btn.textContent='Enregistrer';
   };
@@ -959,10 +959,10 @@ function renderAdminChauffeurs(app, c) {
       <h3 class="font-semibold mb-4" id="ch-form-title">Nouveau compte</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div><label class="block text-xs font-medium mb-1 opacity-70">Nom</label><input id="ch-nom" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"></div>
-        <div><label class="block text-xs font-medium mb-1 opacity-70">Prénom</label><input id="ch-prenom" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"></div>
+        <div><label class="block text-xs font-medium mb-1 opacity-70">PrÃ©nom</label><input id="ch-prenom" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"></div>
         <div><label class="block text-xs font-medium mb-1 opacity-70">Email</label><input id="ch-email" type="email" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"></div>
         <div><label class="block text-xs font-medium mb-1 opacity-70">Mot de passe</label><div class="relative"><input id="ch-pass" type="password" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"><button type="button" id="ch-toggle-pass" class="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:opacity-70" style="color:${c.text}"><i data-lucide="eye" style="width:14px;height:14px"></i></button></div></div>
-        <div><label class="block text-xs font-medium mb-1 opacity-70">Rôle</label><select id="ch-role" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"><option value="chauffeur">Chauffeur</option><option value="admin">Admin</option></select></div>
+        <div><label class="block text-xs font-medium mb-1 opacity-70">RÃ´le</label><select id="ch-role" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}"><option value="chauffeur">Chauffeur</option><option value="admin">Admin</option></select></div>
         <div class="flex items-end"><label class="flex items-center gap-2 cursor-pointer"><input id="ch-active" type="checkbox" checked class="w-4 h-4 rounded accent-yellow-500"><span class="text-sm">Actif</span></label></div>
         <div><label class="block text-xs font-medium mb-1 opacity-70">Photo (URL)</label><input id="ch-photo" type="text" class="w-full px-3 py-2 rounded-lg text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}" placeholder="https://example.com/photo.jpg"></div>
       </div>
@@ -981,7 +981,7 @@ function renderAdminChauffeurs(app, c) {
             </div>
             <div>
               <p class="font-semibold">${u.prenom} ${u.nom}</p>
-              <p class="text-xs opacity-50">${u.email} · ${u.role}</p>
+              <p class="text-xs opacity-50">${u.email} Â· ${u.role}</p>
             </div>
           </div>
           <div class="flex items-center gap-3">
@@ -1043,17 +1043,17 @@ function renderAdminChauffeurs(app, c) {
   document.getElementById('send-notif-btn').onclick = async () => {
     const msg = document.getElementById('notif-message').value.trim();
     
-    // Validation complète du message
+    // Validation complÃ¨te du message
     if (!msg || msg.length === 0) { 
       showToast('Veuillez entrer un message','error'); 
       return; 
     }
     if (msg.length > 500) {
-      showToast('Le message ne doit pas dépasser 500 caractères','error');
+      showToast('Le message ne doit pas dÃ©passer 500 caractÃ¨res','error');
       return;
     }
     if (!notifTarget) {
-      showToast('Sélectionnez un destinataire','error');
+      showToast('SÃ©lectionnez un destinataire','error');
       return;
     }
     
@@ -1061,7 +1061,7 @@ function renderAdminChauffeurs(app, c) {
     document.getElementById('send-notif-btn').textContent = 'Envoi...';
     
     if(APP.allData.length >= 999) { 
-      showToast('Limite de données atteinte','error'); 
+      showToast('Limite de donnÃ©es atteinte','error'); 
       document.getElementById('send-notif-btn').disabled = false; 
       document.getElementById('send-notif-btn').textContent = 'Envoyer'; 
       return; 
@@ -1073,14 +1073,14 @@ function renderAdminChauffeurs(app, c) {
         notification_id: uid(),
         notification_from: APP.currentUser.prenom + ' ' + APP.currentUser.nom + ' (Admin)',
         notification_to: notifTarget.__backendId,
-        notification_message: msg || 'Message envoyé',
+        notification_message: msg || 'Message envoyÃ©',
         notification_timestamp: new Date().toISOString(),
         notification_read: false,
         email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
       });
       
       if (r.isOk) {
-        showToast('Message envoyé à ' + notifTarget.prenom);
+        showToast('Message envoyÃ© Ã  ' + notifTarget.prenom);
         notifPopup.classList.add('hidden');
         document.getElementById('notif-message').value = '';
         notifTarget = null;
@@ -1116,9 +1116,9 @@ function renderAdminChauffeurs(app, c) {
     btn.onclick = () => {
       const u = chauffeurs.find(x=>x.__backendId===btn.dataset.id);
       if(!u) return;
-      if(u.__backendId === APP.currentUser?.__backendId) { showToast('Impossible de se supprimer soi-même','error'); return; }
+      if(u.__backendId === APP.currentUser?.__backendId) { showToast('Impossible de se supprimer soi-mÃªme','error'); return; }
       showConfirm(`Supprimer ${u.prenom} ${u.nom} ?`, async () => {
-        const r = await window.dataSdk.delete(u); if(r.isOk) showToast('Supprimé'); else showToast('Erreur','error');
+        const r = await window.dataSdk.delete(u); if(r.isOk) showToast('SupprimÃ©'); else showToast('Erreur','error');
       });
     };
   });
@@ -1157,9 +1157,9 @@ document.getElementById('ch-save').onclick = async () => {
 
         r = await window.dataSdk.update(updated);
       } else {
-        // CRÉATION
+        // CRÃ‰ATION
         if (getUsers().find(u => u.email === email)) {
-          showToast('Cet email est déjà utilisé', 'error');
+          showToast('Cet email est dÃ©jÃ  utilisÃ©', 'error');
           btn.disabled = false;
           btn.textContent = 'Enregistrer';
           return;
@@ -1198,7 +1198,7 @@ document.getElementById('ch-save').onclick = async () => {
       }
 
       if (r.isOk) {
-        showToast(editingCh ? 'Chauffeur modifié avec succès' : 'Chauffeur créé avec succès');
+        showToast(editingCh ? 'Chauffeur modifiÃ© avec succÃ¨s' : 'Chauffeur crÃ©Ã© avec succÃ¨s');
         if (!editingCh) await syncExcelFile('user');
         form.classList.add('hidden');
         editingCh = null;
@@ -1221,7 +1221,7 @@ function renderAdminHistorique(app, c) {
   
   const exportToCSV = () => {
     if (courses.length === 0) {
-      showToast('Aucune course à exporter', 'error');
+      showToast('Aucune course Ã  exporter', 'error');
       return;
     }
 
@@ -1236,7 +1236,7 @@ function renderAdminHistorique(app, c) {
     
     Object.entries(grouped).forEach(([name, crList]) => {
       csvContent += name + '\n';
-      csvContent += 'Date,Horaire Début,Horaire Fin,Départ,Arrivée,Véhicule,Prix\n';
+      csvContent += 'Date,Horaire DÃ©but,Horaire Fin,DÃ©part,ArrivÃ©e,VÃ©hicule,Prix\n';
       
       crList.forEach(cr => {
         const date = cr.date_course || '';
@@ -1253,7 +1253,7 @@ function renderAdminHistorique(app, c) {
       csvContent += '\n';
     });
     
-    // Créer le blob et télécharger
+    // CrÃ©er le blob et tÃ©lÃ©charger
     const BOM = '\uFEFF';
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1263,12 +1263,12 @@ function renderAdminHistorique(app, c) {
     link.style.display = 'none';
     document.body.appendChild(link);
     
-    // Forcer le téléchargement
+    // Forcer le tÃ©lÃ©chargement
     setTimeout(() => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      showToast('Fichier CSV téléchargé');
+      showToast('Fichier CSV tÃ©lÃ©chargÃ©');
     }, 100);
   };
 
@@ -1279,7 +1279,7 @@ function renderAdminHistorique(app, c) {
         <i data-lucide="download" style="width:16px;height:16px"></i> Exporter CSV
       </button>` : ''}
     </div>
-    ${courses.length===0?'<p class="opacity-50">Aucune course enregistrée</p>':`
+    ${courses.length===0?'<p class="opacity-50">Aucune course enregistrÃ©e</p>':`
     <div class="space-y-4">
       ${
         (() => {
@@ -1300,14 +1300,14 @@ function renderAdminHistorique(app, c) {
                     <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Date</th>
                     <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Horaire</th>
                     <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">De</th>
-                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">À</th>
-                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Véhicule</th>
+                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Ã€</th>
+                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">VÃ©hicule</th>
                     <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Client</th>
                     <th class="text-right px-4 py-2 font-medium opacity-70 text-xs">Prix</th>
                   </tr></thead>
                   <tbody>
                     ${crList.map(cr => {
-                      const clientInfo = cr.client_paye ? '-' : (cr.client_nom || 'Impayé');
+                      const clientInfo = cr.client_paye ? '-' : (cr.client_nom || 'ImpayÃ©');
                       const clientColor = !cr.client_paye ? '#F59E0B' : c.text;
                       return `
                       <tr class="border-t" style="border-color:${c.secondary}30">
@@ -1317,7 +1317,7 @@ function renderAdminHistorique(app, c) {
                         <td class="px-4 py-3 text-xs">${cr.commune_fin_course||'-'}</td>
                         <td class="px-4 py-3 text-xs">${cr.immatriculation||'-'}</td>
                         <td class="px-4 py-3 text-xs font-medium" style="color:${clientColor}">${clientInfo}</td>
-                        <td class="px-4 py-3 text-right font-semibold text-xs" style="color:${c.primary}">${cr.prix?cr.prix.toFixed(2)+'€':'-'}</td>
+                        <td class="px-4 py-3 text-right font-semibold text-xs" style="color:${c.primary}">${cr.prix?cr.prix.toFixed(2)+'â‚¬':'-'}</td>
                       </tr>
                     `}).join('')}
                   </tbody>
@@ -1346,7 +1346,7 @@ function renderAdminServices(app, c) {
 
   const content = `
     <h1 class="font-display text-2xl lg:text-3xl font-bold mb-6" style="color:${c.primary}">Historique des services</h1>
-    ${serviceHistory.length===0?'<p class="opacity-50">Aucun service enregistré</p>':`
+    ${serviceHistory.length===0?'<p class="opacity-50">Aucun service enregistrÃ©</p>':`
     <div class="space-y-4">
       ${
         (() => {
@@ -1364,12 +1364,12 @@ function renderAdminServices(app, c) {
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                   <thead><tr style="background:${c.secondary}15">
-                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Début</th>
+                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">DÃ©but</th>
                     <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Fin</th>
-                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Véhicule</th>
-                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Km début</th>
+                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">VÃ©hicule</th>
+                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Km dÃ©but</th>
                     <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Km fin</th>
-                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">Durée</th>
+                    <th class="text-left px-4 py-2 font-medium opacity-70 text-xs">DurÃ©e</th>
                   </tr></thead>
                   <tbody>
                     ${shList.map(sh => {
@@ -1411,13 +1411,13 @@ function renderChauffeurMain(app, c) {
   if (!user) { APP.currentPage='login'; render(); return; }
 
   const vehicules = getVehicules();
-  const libres = vehicules.filter(v => v.statut_vehicule !== 'occupé');
+  const libres = vehicules.filter(v => v.statut_vehicule !== 'occupÃ©');
   const inService = user.en_service;
   const selectedV = vehicules.find(v => v.__backendId === user.vehicule_id);
 
   const hasCourseActive = APP.courseState !== null;
   
-  // Déterminer si c'est un admin en mode chauffeur
+  // DÃ©terminer si c'est un admin en mode chauffeur
   const isAdminMode = user.role === 'admin' && APP.currentPage === 'admin-as-chauffeur';
 
   let mainContent = '';
@@ -1425,8 +1425,8 @@ function renderChauffeurMain(app, c) {
   if (!inService) {
     mainContent = `
       <div class="rounded-2xl p-6 mb-6" style="background:${c.surface};border:1px solid ${c.secondary}">
-        <h2 class="font-semibold text-lg mb-4 flex items-center gap-2"><i data-lucide="car" style="width:20px;height:20px;color:${c.primary}"></i> Choisir un véhicule</h2>
-        ${libres.length===0?'<p class="opacity-50 text-sm">Aucun véhicule disponible</p>':`
+        <h2 class="font-semibold text-lg mb-4 flex items-center gap-2"><i data-lucide="car" style="width:20px;height:20px;color:${c.primary}"></i> Choisir un vÃ©hicule</h2>
+        ${libres.length===0?'<p class="opacity-50 text-sm">Aucun vÃ©hicule disponible</p>':`
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           ${libres.map(v => `
             <label class="vehicle-option flex items-center gap-3 p-4 rounded-xl cursor-pointer transition hover:opacity-90" style="background:${c.bg};border:2px solid ${c.secondary}" data-vid="${v.__backendId}">
@@ -1436,7 +1436,7 @@ function renderChauffeurMain(app, c) {
           `).join('')}
         </div>
         <button id="start-service-btn" class="w-full py-4 rounded-xl font-bold text-lg transition hover:opacity-90 active:scale-[0.98]" style="background:#10B981;color:white">
-          <i data-lucide="play" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:8px"></i> Démarrer le service
+          <i data-lucide="play" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:8px"></i> DÃ©marrer le service
         </button>`}
       </div>
     `;
@@ -1445,18 +1445,18 @@ function renderChauffeurMain(app, c) {
       <div class="rounded-2xl p-6 mb-4" style="background:${c.surface};border:1px solid ${c.secondary}">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <p class="text-sm opacity-60">Véhicule en cours</p>
+            <p class="text-sm opacity-60">VÃ©hicule en cours</p>
             <p class="font-bold text-lg">${selectedV?selectedV.immatriculation+' - '+selectedV.marque+' '+selectedV.modele:'N/A'}</p>
           </div>
           <span class="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium" style="background:#10B98120;color:#10B981"><span class="w-2 h-2 rounded-full pulse-dot" style="background:#10B981"></span>En service</span>
         </div>
-        <div class="text-sm opacity-60 mb-6">Service démarré : ${user.date_debut_service ? formatDT(user.date_debut_service) : '-'}</div>
+        <div class="text-sm opacity-60 mb-6">Service dÃ©marrÃ© : ${user.date_debut_service ? formatDT(user.date_debut_service) : '-'}</div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button id="take-client-btn" class="py-5 rounded-2xl font-bold text-lg transition hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-3" style="background:${c.primary};color:${c.bg}">
             <i data-lucide="map-pin" style="width:22px;height:22px"></i> Prise en charge client
           </button>
           <button id="stop-service-btn" class="py-5 rounded-2xl font-bold text-lg transition hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-3" style="background:#EF4444;color:white">
-            <i data-lucide="square" style="width:22px;height:22px"></i> Arrêter le service
+            <i data-lucide="square" style="width:22px;height:22px"></i> ArrÃªter le service
           </button>
         </div>
       </div>
@@ -1468,7 +1468,7 @@ function renderChauffeurMain(app, c) {
           <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background:${c.primary}20"><i data-lucide="navigation" style="width:24px;height:24px;color:${c.primary}"></i></div>
           <div>
             <p class="font-bold text-lg">Course en cours</p>
-            <p class="text-sm opacity-60">Départ: ${APP.courseState.startCommune} à ${formatTime(APP.courseState.startTime)}</p>
+            <p class="text-sm opacity-60">DÃ©part: ${APP.courseState.startCommune} Ã  ${formatTime(APP.courseState.startTime)}</p>
           </div>
         </div>
         <button id="end-course-btn" class="w-full py-5 rounded-2xl font-bold text-lg transition hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-3" style="background:${c.primary};color:${c.bg}">
@@ -1509,35 +1509,35 @@ function renderChauffeurMain(app, c) {
         </div>
         <div class="rounded-2xl p-5" style="background:${c.surface};border:1px solid ${c.secondary}">
           <p class="text-sm opacity-60">Recette du jour</p>
-          <p class="text-2xl font-bold mt-1" style="color:${c.primary}">${todayTotal.toFixed(2)} €</p>
+          <p class="text-2xl font-bold mt-1" style="color:${c.primary}">${todayTotal.toFixed(2)} â‚¬</p>
         </div>
       </div>
       ${todayCourses.length>0?`<div class="rounded-2xl p-5" style="background:${c.surface};border:1px solid ${c.secondary}"><h3 class="font-semibold mb-3">Courses du jour</h3><div class="space-y-2">` + todayCourses.slice().reverse().map(cr => {
-          const clientInfo = cr.client_paye ? '' : ' - ' + (cr.client_nom || 'Impayé');
+          const clientInfo = cr.client_paye ? '' : ' - ' + (cr.client_nom || 'ImpayÃ©');
           const clientColor = !cr.client_paye ? '#F59E0B' : c.text;
-          return `<div class="flex items-center justify-between px-4 py-3 rounded-xl" style="background:${c.bg}"><div class="flex-1"><span class="opacity-60">${formatTime(cr.heure_prise_en_charge)}</span> - <span class="opacity-60">${formatTime(cr.heure_fin_course)}</span> ${cr.commune_prise_en_charge||'?'} → ${cr.commune_fin_course||'?'}<span style="color:${clientColor}; font-weight: ${!cr.client_paye ? 'bold' : 'normal'}">${clientInfo}</span></div><span class="font-bold text-sm" style="color:${c.primary}">${cr.prix?cr.prix.toFixed(2)+'€':'-'}</span></div>`;
+          return `<div class="flex items-center justify-between px-4 py-3 rounded-xl" style="background:${c.bg}"><div class="flex-1"><span class="opacity-60">${formatTime(cr.heure_prise_en_charge)}</span> - <span class="opacity-60">${formatTime(cr.heure_fin_course)}</span> ${cr.commune_prise_en_charge||'?'} â†’ ${cr.commune_fin_course||'?'}<span style="color:${clientColor}; font-weight: ${!cr.client_paye ? 'bold' : 'normal'}">${clientInfo}</span></div><span class="font-bold text-sm" style="color:${c.primary}">${cr.prix?cr.prix.toFixed(2)+'â‚¬':'-'}</span></div>`;
         }).join('') + `</div></div></div>`:''
       }
     </div>
     <div id="price-popup" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div class="rounded-2xl p-6 w-full max-w-sm mx-4 fade-in" style="background:${c.surface}">
-        <h3 class="font-bold text-lg mb-4">Détails de la course</h3>
+        <h3 class="font-bold text-lg mb-4">DÃ©tails de la course</h3>
         <div class="mb-4">
-          <label class="block text-sm font-medium mb-2">Prix de la course (€)</label>
+          <label class="block text-sm font-medium mb-2">Prix de la course (â‚¬)</label>
           <input id="course-price" type="number" step="0.01" min="0" class="w-full px-4 py-3 rounded-xl text-lg text-center font-bold" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}" placeholder="0.00">
         </div>
         <div class="mb-4 flex items-center gap-3">
           <label class="flex items-center gap-2 cursor-pointer">
             <input id="client-paye" type="checkbox" checked class="w-4 h-4 rounded accent-yellow-500">
-            <span class="text-sm">Client a payé</span>
+            <span class="text-sm">Client a payÃ©</span>
           </label>
         </div>
         <div id="client-nom-container" class="hidden mb-4">
-          <label class="block text-sm font-medium mb-2">Nom du client (impayé)</label>
+          <label class="block text-sm font-medium mb-2">Nom du client (impayÃ©)</label>
           <input id="client-nom" type="text" class="w-full px-4 py-3 rounded-xl text-sm" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}" placeholder="Nom du client">
         </div>
         <div id="montant-impaye-container" class="hidden mb-4">
-          <label class="block text-sm font-medium mb-2">Montant impayé (€)</label>
+          <label class="block text-sm font-medium mb-2">Montant impayÃ© (â‚¬)</label>
           <input id="montant-impaye" type="number" step="0.01" min="0" class="w-full px-4 py-3 rounded-xl text-lg text-center font-bold" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}" placeholder="0.00">
         </div>
         <div class="flex gap-3">
@@ -1558,7 +1558,7 @@ function renderChauffeurMain(app, c) {
   }
 
   document.getElementById('ch-logout').onclick = () => {
-    // Envoyer une notification de déconnexion
+    // Envoyer une notification de dÃ©connexion
     if (APP.currentUser && APP.currentUser.role === 'chauffeur' && APP.allData.length < 999) {
       const admins = getUsers().filter(a => a.role === 'admin');
       admins.forEach(async (admin) => {
@@ -1567,7 +1567,7 @@ function renderChauffeurMain(app, c) {
           notification_id: uid(),
           notification_from: APP.currentUser.prenom + ' ' + APP.currentUser.nom,
           notification_to: admin.__backendId,
-          notification_message: APP.currentUser.prenom + ' ' + APP.currentUser.nom + ' s\'est déconnecté',
+          notification_message: APP.currentUser.prenom + ' ' + APP.currentUser.nom + ' s\'est dÃ©connectÃ©',
           notification_timestamp: new Date().toISOString(),
           notification_read: false,
           email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',immatriculation:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
@@ -1581,19 +1581,19 @@ function renderChauffeurMain(app, c) {
   if (startBtn) {
     startBtn.onclick = async () => {
       const selected = document.querySelector('input[name="vehicule"]:checked');
-      if (!selected) { showToast('Sélectionnez un véhicule','error'); return; }
+      if (!selected) { showToast('SÃ©lectionnez un vÃ©hicule','error'); return; }
       
-      // Afficher le formulaire de kilométrage
+      // Afficher le formulaire de kilomÃ©trage
       let el = document.getElementById('km-popup');
       if (!el) { el = document.createElement('div'); el.id='km-popup'; document.body.appendChild(el); }
       el.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60';
       const veh = vehicules.find(v => v.__backendId === selected.value);
       el.innerHTML = `
         <div class="rounded-2xl p-6 w-full max-w-sm mx-4 fade-in" style="background:${c.surface}">
-          <h3 class="font-bold text-lg mb-4">Kilométrage du véhicule</h3>
+          <h3 class="font-bold text-lg mb-4">KilomÃ©trage du vÃ©hicule</h3>
           <p class="text-sm opacity-60 mb-4">${veh.immatriculation} - ${veh.marque} ${veh.modele}</p>
           <div class="mb-4">
-            <label class="block text-sm font-medium mb-2">Kilométrage au démarrage</label>
+            <label class="block text-sm font-medium mb-2">KilomÃ©trage au dÃ©marrage</label>
             <input id="km-debut-input" type="number" min="0" step="0.1" class="w-full px-4 py-3 rounded-xl text-lg text-center font-bold" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}" placeholder="0.0">
           </div>
           <div class="flex gap-3">
@@ -1608,25 +1608,25 @@ function renderChauffeurMain(app, c) {
       document.getElementById('save-km-btn').onclick = async () => {
         const kmDebut = parseFloat(document.getElementById('km-debut-input').value);
         if (isNaN(kmDebut) || kmDebut < 0) { 
-          showToast('Entrez un kilométrage valide','error'); 
+          showToast('Entrez un kilomÃ©trage valide','error'); 
           return; 
         }
         
         const btn = document.getElementById('save-km-btn');
         btn.disabled=true; 
-        btn.textContent='Démarrage...';
+        btn.textContent='DÃ©marrage...';
         el.remove();
         
         try {
           const now = new Date().toISOString();
           
-          // Mise à jour du véhicule
-          const vhUpdateRes = await window.dataSdk.update({...veh, statut_vehicule:'occupé'});
+          // Mise Ã  jour du vÃ©hicule
+          const vhUpdateRes = await window.dataSdk.update({...veh, statut_vehicule:'occupÃ©'});
           if (!vhUpdateRes.isOk) {
-            throw new Error('Erreur mise à jour du statut du véhicule');
+            throw new Error('Erreur mise Ã  jour du statut du vÃ©hicule');
           }
           
-          // Mise à jour du chauffeur
+          // Mise Ã  jour du chauffeur
           const userUpdateRes = await window.dataSdk.update({
             ...user, 
             en_service: true, 
@@ -1635,7 +1635,7 @@ function renderChauffeurMain(app, c) {
             km_debut: kmDebut
           });
           if (!userUpdateRes.isOk) {
-            throw new Error('Erreur mise à jour du profil chauffeur');
+            throw new Error('Erreur mise Ã  jour du profil chauffeur');
           }
           
           if(APP.allData.length < 999) {
@@ -1651,23 +1651,23 @@ function renderChauffeurMain(app, c) {
               km_fin: 0,
               email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',marque:'',modele:'',statut_vehicule:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''
             });
-            if (!histRes.isOk) console.warn('Erreur création historique:', histRes.error);
+            if (!histRes.isOk) console.warn('Erreur crÃ©ation historique:', histRes.error);
           }
           
           APP.serviceState = {vehiculeId: veh.__backendId, startTime: now, kmDebut: kmDebut};
-          showToast('Service démarré avec succès !');
+          showToast('Service dÃ©marrÃ© avec succÃ¨s !');
           
-          // Notification admin: démarrage du service
+          // Notification admin: dÃ©marrage du service
           if (user && user.prenom && user.nom) {
             const userName = user.prenom + ' ' + user.nom;
             const vehInfo = veh ? ' (' + veh.immatriculation + ')' : '';
-            await notifyAdmins('🚗 ' + userName + ' a démarré son service' + vehInfo, 'service_start');
+            await notifyAdmins('ðŸš— ' + userName + ' a dÃ©marrÃ© son service' + vehInfo, 'service_start');
           }
           
           render();
         } catch (err) {
-          console.error('Erreur démarrage service:', err);
-          showToast('Erreur: ' + (err.message || 'Impossible de démarrer le service'), 'error');
+          console.error('Erreur dÃ©marrage service:', err);
+          showToast('Erreur: ' + (err.message || 'Impossible de dÃ©marrer le service'), 'error');
           setTimeout(() => { el.remove(); render(); }, 1000);
         }
       };
@@ -1677,7 +1677,7 @@ function renderChauffeurMain(app, c) {
   const stopBtn = document.getElementById('stop-service-btn');
   if (stopBtn) {
     stopBtn.onclick = () => {
-      // Afficher le formulaire de fin de kilométrage
+      // Afficher le formulaire de fin de kilomÃ©trage
       let el = document.getElementById('km-fin-popup');
       if (!el) { el = document.createElement('div'); el.id='km-fin-popup'; document.body.appendChild(el); }
       el.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60';
@@ -1685,7 +1685,7 @@ function renderChauffeurMain(app, c) {
         <div class="rounded-2xl p-6 w-full max-w-sm mx-4 fade-in" style="background:${c.surface}">
           <h3 class="font-bold text-lg mb-4">Fin du service</h3>
           <div class="mb-4">
-            <label class="block text-sm font-medium mb-2">Kilométrage à la fin</label>
+            <label class="block text-sm font-medium mb-2">KilomÃ©trage Ã  la fin</label>
             <input id="km-fin-input" type="number" min="0" step="0.1" class="w-full px-4 py-3 rounded-xl text-lg text-center font-bold" style="background:${c.bg};color:${c.text};border:1px solid ${c.secondary}" placeholder="0.0">
           </div>
           <div class="flex gap-3">
@@ -1700,25 +1700,25 @@ function renderChauffeurMain(app, c) {
       document.getElementById('save-km-fin-btn').onclick = async () => {
         const kmFin = parseFloat(document.getElementById('km-fin-input').value);
         if (isNaN(kmFin) || kmFin < 0) { 
-          showToast('Entrez un kilométrage valide','error'); 
+          showToast('Entrez un kilomÃ©trage valide','error'); 
           return; 
         }
         
         el.remove();
-        showConfirm('Êtes-vous sûr de vouloir terminer votre service ?', async () => {
+        showConfirm('ÃŠtes-vous sÃ»r de vouloir terminer votre service ?', async () => {
           const btn = document.getElementById('stop-service-btn');
           btn.disabled=true; 
-          btn.textContent='Arrêt...';
+          btn.textContent='ArrÃªt...';
           try {
             const now = new Date().toISOString();
             
-            // Libérer le véhicule
+            // LibÃ©rer le vÃ©hicule
             if (selectedV && selectedV.__backendId) {
               const vehRes = await window.dataSdk.update({...selectedV, statut_vehicule:'libre'});
-              if (!vehRes.isOk) console.warn('Erreur libération véhicule:', vehRes.error);
+              if (!vehRes.isOk) console.warn('Erreur libÃ©ration vÃ©hicule:', vehRes.error);
             }
             
-            // Mettre à jour le chauffeur
+            // Mettre Ã  jour le chauffeur
             const userRes = await window.dataSdk.update({
               ...user, 
               en_service: false, 
@@ -1727,9 +1727,9 @@ function renderChauffeurMain(app, c) {
               course_state_active: '', 
               km_fin: kmFin
             });
-            if (!userRes.isOk) throw new Error('Erreur mise à jour profil chauffeur');
+            if (!userRes.isOk) throw new Error('Erreur mise Ã  jour profil chauffeur');
             
-            // Mettre à jour l'historique du service
+            // Mettre Ã  jour l'historique du service
             const serviceHistory = getServiceHistory();
             const lastService = serviceHistory.find(sh => sh.service_history_chauffeur_id === user.__backendId && !sh.service_history_fin);
             if (lastService) {
@@ -1738,18 +1738,18 @@ function renderChauffeurMain(app, c) {
                 service_history_fin: now, 
                 km_fin: kmFin
               });
-              if (!histRes.isOk) console.warn('Erreur mise à jour historique:', histRes.error);
+              if (!histRes.isOk) console.warn('Erreur mise Ã  jour historique:', histRes.error);
             }
             
             APP.serviceState = null;
             APP.courseState = null;
-            showToast('Service terminé avec succès');
+            showToast('Service terminÃ© avec succÃ¨s');
             
             // Notification admin: fin du service
             if (user && user.prenom && user.nom) {
               const userName = user.prenom + ' ' + user.nom;
               const vehInfo = selectedV ? ' (' + selectedV.immatriculation + ')' : '';
-              await notifyAdmins('✋ ' + userName + ' a terminé son service' + vehInfo, 'service_end');
+              await notifyAdmins('âœ‹ ' + userName + ' a terminÃ© son service' + vehInfo, 'service_end');
             }
             
             setTimeout(() => {
@@ -1760,12 +1760,12 @@ function renderChauffeurMain(app, c) {
               showDailyRecap(totalRecette, todayCourses.length, user.prenom + ' ' + user.nom);
             }, 500);
           } catch (err) {
-            console.error('Erreur arrêt service:', err);
-            showToast('Erreur: ' + (err.message || 'Impossible d\'arrêter le service'), 'error');
+            console.error('Erreur arrÃªt service:', err);
+            showToast('Erreur: ' + (err.message || 'Impossible d\'arrÃªter le service'), 'error');
             render();
           } finally {
             btn.disabled=false;
-            btn.textContent='Arrêter le service';
+            btn.textContent='ArrÃªter le service';
           }
         });
       };
@@ -1782,12 +1782,12 @@ function renderChauffeurMain(app, c) {
           commune = await getCommune();
         }
       } catch(e) {
-        console.log('Géolocalisation non disponible');
+        console.log('GÃ©olocalisation non disponible');
       }
       const now = new Date().toISOString();
       APP.courseState = {startTime:now, startCommune:commune};
       await window.dataSdk.update({...user, course_state_active: JSON.stringify(APP.courseState)});
-      showToast(`Prise en charge à ${commune}`);
+      showToast(`Prise en charge Ã  ${commune}`);
       render();
     };
   }
@@ -1803,7 +1803,7 @@ function renderChauffeurMain(app, c) {
         }
         commune = await getCommune();
       } catch(e) {
-        console.log('Géolocalisation non disponible, utilisation de "Inconnue"');
+        console.log('GÃ©olocalisation non disponible, utilisation de "Inconnue"');
       }
       const now = new Date().toISOString();
       APP.courseEndData = {endTime:now, endCommune:commune};
@@ -1850,13 +1850,13 @@ function renderChauffeurMain(app, c) {
       const montantImpaye = clientPaye ? 0 : parseFloat(document.getElementById('montant-impaye').value) || 0;
       
       if (isNaN(prix) || prix < 0) { showToast('Entrez un prix valide','error'); return; }
-      if (!clientPaye && !nomClient) { showToast('Entrez le nom du client pour une course impayée','error'); return; }
-      if (!clientPaye && (isNaN(montantImpaye) || montantImpaye < 0)) { showToast('Entrez un montant impayé valide','error'); return; }
+      if (!clientPaye && !nomClient) { showToast('Entrez le nom du client pour une course impayÃ©e','error'); return; }
+      if (!clientPaye && (isNaN(montantImpaye) || montantImpaye < 0)) { showToast('Entrez un montant impayÃ© valide','error'); return; }
       
       saveBtn.disabled=true; saveBtn.textContent='Enregistrement...';
       
       if(APP.allData.length>=999){
-        showToast('Limite de données atteinte','error');
+        showToast('Limite de donnÃ©es atteinte','error');
         saveBtn.disabled=false;
         saveBtn.textContent='Enregistrer';
         return;
@@ -1884,12 +1884,12 @@ function renderChauffeurMain(app, c) {
           client_paye: clientPaye,
           montant_impaye: montantImpaye,
           statut_chauffeur: 'en service',
-          statut_vehicule_course: 'occupé',
+          statut_vehicule_course: 'occupÃ©',
           email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,marque:'',modele:'',statut_vehicule:'',photo_profile:'',course_state_active:''
         });
         
         if(r.isOk) {
-          showToast(`Course enregistrée : ${prix.toFixed(2)} €`);
+          showToast(`Course enregistrÃ©e : ${prix.toFixed(2)} â‚¬`);
           APP.courseState = null;
           APP.courseEndData = null;
           const userRes = await window.dataSdk.update({...user, course_state_active:''});
@@ -1903,7 +1903,7 @@ function renderChauffeurMain(app, c) {
           document.getElementById('montant-impaye-container').classList.add('hidden');
           render();
         } else {
-          console.error('Erreur création course:', r.error);
+          console.error('Erreur crÃ©ation course:', r.error);
           showToast('Erreur enregistrement','error');
         }
       } catch (err) {
@@ -1944,13 +1944,13 @@ render();
       const montantImpaye = clientPaye ? 0 : parseFloat(document.getElementById('montant-impaye').value) || 0;
       
       if (isNaN(prix) || prix < 0) { showToast('Entrez un prix valide','error'); return; }
-      if (!clientPaye && !nomClient) { showToast('Entrez le nom du client pour une course impayée','error'); return; }
-      if (!clientPaye && (isNaN(montantImpaye) || montantImpaye < 0)) { showToast('Entrez un montant impayé valide','error'); return; }
+      if (!clientPaye && !nomClient) { showToast('Entrez le nom du client pour une course impayÃ©e','error'); return; }
+      if (!clientPaye && (isNaN(montantImpaye) || montantImpaye < 0)) { showToast('Entrez un montant impayÃ© valide','error'); return; }
       
       saveBtn.disabled=true; saveBtn.textContent='Enregistrement...';
       
       if(APP.allData.length>=999){
-        showToast('Limite de données atteinte','error');
+        showToast('Limite de donnÃ©es atteinte','error');
         saveBtn.disabled=false;
         saveBtn.textContent='Enregistrer';
         return;
@@ -1978,12 +1978,12 @@ render();
           client_paye: clientPaye,
           montant_impaye: montantImpaye,
           statut_chauffeur: 'en service',
-          statut_vehicule_course: 'occupé',
+          statut_vehicule_course: 'occupÃ©',
           email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,marque:'',modele:'',statut_vehicule:'',photo_profile:'',course_state_active:''
         });
         
         if(r.isOk) {
-          showToast(`Course enregistrée : ${prix.toFixed(2)} €`);
+          showToast(`Course enregistrÃ©e : ${prix.toFixed(2)} â‚¬`);
           APP.courseState = null;
           APP.courseEndData = null;
           const userRes = await window.dataSdk.update({...user, course_state_active:''});
@@ -1997,7 +1997,7 @@ render();
           document.getElementById('montant-impaye-container').classList.add('hidden');
           render();
         } else {
-          console.error('Erreur création course:', r.error);
+          console.error('Erreur crÃ©ation course:', r.error);
           showToast('Erreur enregistrement','error');
         }
       } catch (err) {
@@ -2023,6 +2023,7 @@ render();
  </body>
 </html>
 
-render();
+// Initialiser l'app avec le SDK données
+initApp();
  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9e28252546224718',t:'MTc3NDU0ODk3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
