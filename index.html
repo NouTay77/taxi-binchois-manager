@@ -242,7 +242,7 @@ const dataHandler = {
 async function initApp() {
 console.log('Initialisation du SDK données...');
   const r = await window.dataSdk.init(dataHandler);
-  
+
   if (r.isOk) {
     console.log('SDK données initialisé avec succès');
     // Restaurer la session utilisateur depuis localStorage/Redis
@@ -260,15 +260,14 @@ console.log('Initialisation du SDK données...');
                 APP.courseState = JSON.parse(sessionData.user.course_state_active);
               } catch(e) {}
             }
-            console.log('Session restaurée :', sessionData.user.prenom, sessionData.user.nom);
+                    render();
           }
-        } else {
-          // Session expirée ou invalide
+                } else if (sessionRes.status === 404) {
+                  // Uniquement si la session est explicitement introuvable
           localStorage.removeItem('sessionID');
         }
       } catch(e) {
-        console.error('Erreur restauration session:', e);
-        localStorage.removeItem('sessionID');
+                console.error('Erreur serveur ou Redis lent (session conservée localement):', e);
       }
     }
     // On force un premier rendu pour masquer le bouton "Créer Admin" 
