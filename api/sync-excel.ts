@@ -6,10 +6,17 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 function createRedisConnection() {
   return new Redis(process.env.REDIS_URL || '', {
     maxRetriesPerRequest: null,
-    enableOfflineQueue: false,
-    connectTimeout: 10000,
-    commandTimeout: 5000,
-    retryStrategy: (times) => Math.min(times * 50, 500),
+    enableOfflineQueue: true,
+    connectTimeout: 15000,
+    commandTimeout: 10000,
+    maxReconnectTime: 10000,
+    retryStrategy: (times) => {
+      if (times > 5) return null;
+      return Math.min(times * 100, 1000);
+    },
+    lazyConnect: true, // Retarder la connexion pour la gérer correctement
+    keepAlive: 0, // Pas de keep-alive sur Vercel (éphémère)
+    family: 4, // IPv4 uniquement pour éviter les problèmes DNS
   });
 }
 
@@ -36,6 +43,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const redis = createRedisConnection();
 
   try {
+    // Attendre que la connexion soit établie avec timeout
+    const pingPromise = redis.ping();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Redis connection timeout')), 12000)
+    );
+    
+    await Promise.race([pingPromise, timeoutPromise]);
+
     // GET - Récupérer toutes les données depuis Redis
     if (req.method === 'GET') {
       const data = await redis.get('taxi_app_data');
