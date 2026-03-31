@@ -34,15 +34,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { action, sessionID } = req.query;
     
-    // Parser le body JSON manuellement (Vercel Functions ne le fait pas automatiquement)
+    // Parser le body JSON manuellement (Vercel Functions peut l'envoyer comme Buffer, string, ou object)
     let bodyData: any = {};
     if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
       try {
-        bodyData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        if (req.body) {
+          if (typeof req.body === 'string') {
+            bodyData = JSON.parse(req.body);
+          } else if (Buffer.isBuffer(req.body)) {
+            bodyData = JSON.parse(req.body.toString());
+          } else if (typeof req.body === 'object') {
+            bodyData = req.body;
+          }
+        }
       } catch (e) {
+        console.error('Body parse error:', e, 'body type:', typeof req.body, 'body:', req.body);
         bodyData = {};
       }
     }
+
+    console.log('Store API call:', { action, sessionID, method: req.method, bodyDataKeys: Object.keys(bodyData), bodyDataUser: bodyData.user ? 'exists' : 'missing' });
 
     if (req.method === 'GET') {
       // Récupérer une session utilisateur
