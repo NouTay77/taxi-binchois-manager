@@ -6,194 +6,106 @@
   <title>MyTaxi Binchois</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-  <script src="./_sdk/element_sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="favicon.png">
 
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            taxi: { 50:'#FFF9E6',100:'#FFF0B3',200:'#FFE680',300:'#FFDB4D',400:'#FFD11A',500:'#E6B800',600:'#B38F00',700:'#806600',800:'#4D3D00',900:'#1A1400' },
-            night: { 50:'#E8EAF0',100:'#C5C9D6',200:'#9EA5B8',300:'#78819A',400:'#586585',500:'#3B4A6B',600:'#2D3A57',700:'#1F2A43',800:'#141C30',900:'#0A0F1C' }
-          }
-        }
-      }
-    }
-  </script>
-
   <style>
     * { font-family: 'DM Sans', sans-serif; }
     .font-display { font-family: 'Playfair Display', serif; }
-    html, body, #app { height: 100%; width: 100%; margin: 0; padding: 0; }
-    .fade-in { animation: fadeIn 0.3s ease; }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-    .slide-in { animation: slideIn 0.35s ease; }
-    @keyframes slideIn { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
-    .toast-in { animation: toastIn 0.4s ease; }
-    @keyframes toastIn { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
-    .pulse-dot { animation: pulseDot 2s infinite; }
-    @keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    input:focus, select:focus { outline: none; box-shadow: 0 0 0 3px rgba(230,184,0,0.3); }
-    ::-webkit-scrollbar { width:6px } ::-webkit-scrollbar-track { background:#1F2A43 } ::-webkit-scrollbar-thumb { background:#3B4A6B; border-radius:3px }
+    html, body, #app { height: 100%; margin: 0; padding: 0; }
+    body { background: #0A0F1C; color: white; }
   </style>
+</head>
+<body class="h-full overflow-auto">
 
-  <body class="h-full bg-night-900 text-white overflow-auto">
-    <div id="app" class="h-full w-full"></div>
+  <div id="app" class="h-full w-full"></div>
 
-    <!-- ====================== DATA_SDK CORRIGÉ ====================== -->
-    <script>
-    window.dataSdk = {
-      data: [],
-      handler: null,
-      lastSyncHash: null,
-      pollingInterval: null,
+  <!-- ====================== DATA SDK STABLE ====================== -->
+  <script>
+  window.dataSdk = {
+    data: [],
+    handler: null,
+    lastSyncHash: null,
+    pollingInterval: null,
 
-      async init(dataHandler) {
-        this.handler = dataHandler;
-        console.log('[SDK] Initialisation avec persistance renforcée...');
+    async init(dataHandler) {
+      this.handler = dataHandler;
+      console.log('[SDK] Initialisation...');
 
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-          const res = await fetch('/api/store', { signal: controller.signal });
-          clearTimeout(timeoutId);
-
-          if (res.ok) {
-            const cloudData = await res.json();
-            const received = cloudData.success && Array.isArray(cloudData.data) 
-              ? cloudData.data 
-              : (Array.isArray(cloudData) ? cloudData : []);
-
-            this.data = received;
-            this.lastSyncHash = JSON.stringify(this.data);
-            console.log(`[SDK] ✅ ${this.data.length} enregistrements chargés depuis Redis`);
-          } else {
-            console.warn(`[SDK] Cloud HTTP ${res.status} → utilisation du cache mémoire`);
-          }
-        } catch (e) {
-          console.error('[SDK] Erreur Redis:', e);
-          console.warn('[ANTI-DATA-LOSS] Conservation des données en mémoire');
-        }
-
-        if (this.handler?.onDataChanged) {
-          this.handler.onDataChanged(this.data);
-        }
-
-        this.startPolling();
-        return { isOk: true };
-      },
-
-      startPolling() {
-        if (this.pollingInterval) clearInterval(this.pollingInterval);
-        this.pollingInterval = setInterval(async () => {
-          try {
-            const res = await fetch('/api/store', { signal: AbortSignal.timeout(5000) });
-            if (res.ok) {
-              const cloudData = await res.json();
-              const received = cloudData.success && Array.isArray(cloudData.data) 
-                ? cloudData.data 
-                : (Array.isArray(cloudData) ? cloudData : []);
-
-              const cloudHash = JSON.stringify(received);
-              if (cloudHash !== this.lastSyncHash) {
-                this.data = received;
-                this.lastSyncHash = cloudHash;
-                console.log('[SDK] 🔄 Sync auto détectée depuis Redis');
-                if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
-              }
-            }
-          } catch (e) {}
-        }, 3000);
-      },
-
-      async list() {
-        return {
-          isOk: true,
-          users: this.data.filter(d => d.type === 'user'),
-          vehicles: this.data.filter(d => d.type === 'vehicule')
-        };
-      },
-
-      async create(item) {
-        try {
-          const newItem = { 
-            ...item, 
-            __backendId: Date.now().toString() + Math.random().toString(36).substr(2, 8) 
-          };
-          this.data.push(newItem);
-          await this.save();
-          return { isOk: true, data: newItem };
-        } catch (err) {
-          console.error("Erreur create:", err);
-          return { isOk: false, error: err.message };
-        }
-      },
-
-      async update(item) {
-        try {
-          if (!item?.__backendId) return { isOk: false, error: 'Missing __backendId' };
-          const index = this.data.findIndex(d => d.__backendId === item.__backendId);
-          if (index === -1) return { isOk: false, error: 'Item not found' };
-          this.data[index] = { ...this.data[index], ...item };
-          await this.save();
-          return { isOk: true, item: this.data[index] };
-        } catch (err) {
-          console.error("Erreur update:", err);
-          return { isOk: false, error: err.message };
-        }
-      },
-
-      async delete(item) {
-        try {
-          if (!item?.__backendId) return { isOk: false, error: 'Missing __backendId' };
-          const index = this.data.findIndex(d => d.__backendId === item.__backendId);
-          if (index === -1) return { isOk: false, error: 'Item not found' };
-          this.data.splice(index, 1);
-          await this.save();
-          return { isOk: true };
-        } catch (err) {
-          console.error("Erreur delete:", err);
-          return { isOk: false, error: err.message };
-        }
-      },
-
-      async save() {
-        try {
+      try {
+        const res = await fetch('/api/store');
+        if (res.ok) {
+          const json = await res.json();
+          const received = json.success && Array.isArray(json.data) ? json.data : [];
+          this.data = received;
           this.lastSyncHash = JSON.stringify(this.data);
-          if (this.handler?.onDataChanged) this.handler.onDataChanged(this.data);
-
-          const response = await fetch('/api/store', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: this.data }),
-            signal: AbortSignal.timeout(10000)
-          });
-
-          if (!response.ok) throw new Error(`Save failed: ${response.status}`);
-          console.log('[SDK] ✅ Sauvegarde Redis réussie');
-        } catch (err) {
-          console.error("❌ Erreur save Redis:", err);
-          throw err;
+          console.log(`[SDK] ${this.data.length} enregistrements chargés`);
         }
+      } catch (e) {
+        console.warn('[SDK] Redis non accessible → mode offline');
       }
-    };
-    </script>
 
-    <!-- ====================== SCRIPT PRINCIPAL ====================== -->
-    <script>
-const defaultConfig = {
-  app_title: 'MyTaxi Binchois',
-  login_subtitle: 'Gestion de flotte de taxis',
-  bg_color: '#0A0F1C',
-  surface_color: '#1F2A43',
-  text_color: '#E8EAF0',
-  primary_color: '#E6B800',
-  secondary_color: '#3B4A6B'
-};
+      if (this.handler) this.handler.onDataChanged(this.data);
+      this.startPolling();
+      return { isOk: true };
+    },
+
+    startPolling() {
+      if (this.pollingInterval) clearInterval(this.pollingInterval);
+      this.pollingInterval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/store');
+          if (res.ok) {
+            const json = await res.json();
+            const received = json.success && Array.isArray(json.data) ? json.data : [];
+            const hash = JSON.stringify(received);
+            if (hash !== this.lastSyncHash) {
+              this.data = received;
+              this.lastSyncHash = hash;
+              if (this.handler) this.handler.onDataChanged(this.data);
+            }
+          }
+        } catch(e) {}
+      }, 4000);
+    },
+
+    async list() {
+      return { isOk: true, users: this.data.filter(d => d.type === 'user'), vehicles: this.data.filter(d => d.type === 'vehicule') };
+    },
+
+    async create(item) {
+      const newItem = { ...item, __backendId: Date.now().toString(36) + Math.random().toString(36).slice(2) };
+      this.data.push(newItem);
+      await this.save();
+      return { isOk: true, data: newItem };
+    },
+
+    async update(item) {
+      if (!item?.__backendId) return { isOk: false, error: 'No ID' };
+      const idx = this.data.findIndex(x => x.__backendId === item.__backendId);
+      if (idx === -1) return { isOk: false, error: 'Not found' };
+      this.data[idx] = { ...this.data[idx], ...item };
+      await this.save();
+      return { isOk: true };
+    },
+
+    async save() {
+      this.lastSyncHash = JSON.stringify(this.data);
+      if (this.handler) this.handler.onDataChanged(this.data);
+
+      await fetch('/api/store', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ data: this.data })
+      });
+    }
+  };
+  </script>
+
+  <!-- ====================== MAIN APP ====================== -->
+  <script>
+const defaultConfig = { app_title: 'MyTaxi Binchois', login_subtitle: 'Gestion de flotte de taxis' };
 
 let APP = {
   currentUser: null,
@@ -201,83 +113,11 @@ let APP = {
   allData: [],
   users: [],
   vehicles: [],
-  toasts: [],
-  confirmDialog: null,
-  editItem: null,
-  _isRestoring: false,
-  serviceState: null,
-  courseState: null,
-  courseEndData: null,
+  toasts: []
 };
 
-function getUsers() { return APP.users; }
-function getVehicules() { return APP.vehicles; }
-function getCourses() { return APP.allData.filter(d => d.type === 'course'); }
-function getNotifications() { return APP.allData.filter(d => d.type === 'notification'); }
-function getServiceHistory() { return APP.allData.filter(d => d.type === 'service_history'); }
-
-function generateRandomAvatar(prenom, nom) {
-  const colors = ['#FF6B6B','#4ECDC4','#45B7D1','#FFA07A','#98D8C8','#6C5CE7','#A29BFE','#FF7675','#74B9FF','#55EFC4'];
-  const color = colors[Math.floor(Math.random() * colors.length)];
-  const initials = (prenom[0] || '') + (nom[0] || '');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="${color}"/><text x="50" y="55" font-size="40" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">${initials.toUpperCase()}</text></svg>`;
-}
-
-function showToast(msg, type='success') {
-  const id = Date.now();
-  APP.toasts.push({id, msg, type});
-  renderToasts();
-  setTimeout(() => { APP.toasts = APP.toasts.filter(t=>t.id!==id); renderToasts(); }, 3500);
-}
-
-function renderToasts() {
-  let c = document.getElementById('toast-container');
-  if (!c) { 
-    c = document.createElement('div'); 
-    c.id='toast-container'; 
-    c.className='fixed bottom-4 right-4 z-50 flex flex-col gap-2'; 
-    document.body.appendChild(c); 
-  }
-  c.innerHTML = APP.toasts.map(t => `
-    <div class="toast-in px-5 py-3 rounded-lg shadow-xl text-sm font-medium ${t.type==='error'?'bg-red-600':'bg-emerald-600'} text-white max-w-xs">${t.msg}</div>
-  `).join('');
-}
-
-// ... (toutes les autres fonctions showConfirm, showDailyRecap, getCommune, formatDT, etc. restent identiques)
-
-async function initApp() {
-  if (APP._isRestoring) return;
-  APP._isRestoring = true;
-  console.log('[Init] Démarrage...');
-
-  await new Promise(r => setTimeout(r, 100)); // petit délai pour que dataSdk soit chargé
-
-  const r = await window.dataSdk.init(dataHandler);
-  if (r.isOk) {
-    await loadCloudData();
-    
-    // Restauration session
-    const savedSessionID = localStorage.getItem('sessionID');
-    if (savedSessionID) {
-      try {
-        const sessionRes = await fetch(`/api/store?sessionID=${encodeURIComponent(savedSessionID)}`);
-        if (sessionRes.ok) {
-          const sessionData = await sessionRes.json();
-          if (sessionData.success && sessionData.user) {
-            APP.currentUser = sessionData.user;
-            APP.currentPage = sessionData.user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
-          }
-        }
-      } catch(e) {
-        console.error('[Restore] Erreur:', e);
-      }
-    }
-    
-    await refreshAppData();
-  }
-
-  APP._isRestoring = false;
-  render();
+function showToast(msg, type = 'success') {
+  console.log(`%c[Toast] ${msg}`, type === 'error' ? 'color:red' : 'color:lime');
 }
 
 const dataHandler = {
@@ -289,49 +129,71 @@ const dataHandler = {
   }
 };
 
-async function loadCloudData() {
-  const result = await window.dataSdk.list();
-  if (result.isOk) {
-    APP.users = result.users || [];
-    APP.vehicles = result.vehicles || [];
-  }
-}
+async function initApp() {
+  console.log('[APP] Démarrage...');
+  document.getElementById('app').innerHTML = `
+    <div class="h-full flex items-center justify-center bg-[#0A0F1C]">
+      <div class="text-center">
+        <div class="w-12 h-12 border-4 border-t-yellow-400 border-gray-700 rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-yellow-400">Chargement de l'application...</p>
+      </div>
+    </div>`;
 
-async function refreshAppData() {
-  const result = await window.dataSdk.list();
-  if (result.isOk) {
-    APP.users = result.users || [];
-    APP.vehicles = result.vehicles || [];
+  await window.dataSdk.init(dataHandler);
+  
+  // Restauration session
+  const sessionID = localStorage.getItem('sessionID');
+  if (sessionID) {
+    try {
+      const res = await fetch(`/api/store?sessionID=${sessionID}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.user) {
+          APP.currentUser = json.user;
+          APP.currentPage = json.user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
+        }
+      }
+    } catch(e) {}
   }
-}
 
-function cfg(key) {
-  return (window.elementSdk?.config?.[key]) || defaultConfig[key];
+  render();
 }
 
 function render() {
   const app = document.getElementById('app');
   if (!app) return;
 
-  if (!APP.currentUser && APP.currentPage !== 'login') {
-    APP.currentPage = 'login';
+  if (!APP.currentUser) {
+    app.innerHTML = `
+      <div class="min-h-screen flex items-center justify-center p-4" style="background: linear-gradient(135deg, #0A0F1C, #1F2A43)">
+        <div class="max-w-md w-full bg-[#1F2A43] rounded-3xl p-8 shadow-2xl">
+          <h1 class="text-4xl font-bold text-center mb-2 text-yellow-400">MyTaxi Binchois</h1>
+          <p class="text-center text-gray-400 mb-8">Connexion</p>
+          
+          <input id="email" type="email" placeholder="Email" class="w-full p-4 rounded-2xl bg-[#0A0F1C] mb-4 text-white">
+          <input id="password" type="password" placeholder="Mot de passe" class="w-full p-4 rounded-2xl bg-[#0A0F1C] mb-6 text-white">
+          
+          <button onclick="performLogin()" class="w-full py-4 bg-yellow-400 text-black font-bold rounded-2xl">
+            Se connecter
+          </button>
+        </div>
+      </div>`;
+  } else {
+    app.innerHTML = `<div class="p-8 text-center"><h1 class="text-3xl">Bienvenue ${APP.currentUser.prenom || ''}</h1><p>Page : ${APP.currentPage}</p></div>`;
   }
-
-  // ... (le reste du render avec tous les renderLogin, renderAdminDashboard, renderChauffeurMain, etc.)
-
-  switch(APP.currentPage) {
-    case 'login': renderLogin(app); break;
-    case 'admin-dashboard': renderAdminDashboard(app); break;
-    // ... autres pages
-    default: renderLogin(app);
-  }
-  lucide.createIcons();
 }
 
-// IMPORTANT : Lancement immédiat
-(async () => {
-  await initApp();
-})();
-    </script>
-  </body>
+async function performLogin() {
+  const email = document.getElementById('email').value.trim();
+  const pass = document.getElementById('password').value;
+  // Pour le moment on simule un login réussi
+  APP.currentUser = { prenom: "Admin", nom: "Test", role: "admin", email };
+  localStorage.setItem('sessionID', 'test-session-' + Date.now());
+  render();
+}
+
+// Lancement immédiat
+window.onload = initApp;
+  </script>
+</body>
 </html>
