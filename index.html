@@ -245,6 +245,32 @@ console.log('Initialisation du SDK données...');
   
   if (r.isOk) {
     console.log('SDK données initialisé avec succès');
+    // Restaurer la session utilisateur depuis localStorage/Redis
+    const savedSessionID = localStorage.getItem('sessionID');
+    if (savedSessionID) {
+      try {
+        const sessionRes = await fetch(`/api/store?sessionID=${encodeURIComponent(savedSessionID)}`);
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          if (sessionData.success && sessionData.user) {
+            APP.currentUser = sessionData.user;
+            APP.currentPage = sessionData.user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
+            if (sessionData.user.en_service && sessionData.user.course_state_active) {
+              try {
+                APP.courseState = JSON.parse(sessionData.user.course_state_active);
+              } catch(e) {}
+            }
+            console.log('Session restaurée :', sessionData.user.prenom, sessionData.user.nom);
+          }
+        } else {
+          // Session expirée ou invalide
+          localStorage.removeItem('sessionID');
+        }
+      } catch(e) {
+        console.error('Erreur restauration session:', e);
+        localStorage.removeItem('sessionID');
+      }
+    }
     // On force un premier rendu pour masquer le bouton "Créer Admin" 
     // si des données sont arrivées du Cloud
     render(); 
@@ -510,6 +536,35 @@ async function renderLogin(app, c) {
       err.classList.remove('hidden');
       return;
     }
+    
+    // Générer un sessionID unique
+    const sessionID = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    user.sessionID = sessionID;
+    
+    // Sauvegarder la session dans Redis
+    try {
+      const createSessionRes = await fetch('/api/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_session',
+          user: user
+        })
+      });
+      
+      if (createSessionRes.ok) {
+        // Sauvegarder le sessionID dans localStorage
+        localStorage.setItem('sessionID', sessionID);
+      } else {
+        showToast('Erreur création session', 'error');
+        return;
+      }
+    } catch(e) {
+      console.error('Erreur création session:', e);
+      showToast('Erreur création session', 'error');
+      return;
+    }
+    
     APP.currentUser = user;
     APP.currentPage = user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
     if (user.en_service && user.course_state_active) {
@@ -618,6 +673,24 @@ function adminLayout(app, c, activePage, contentHTML) {
     btn.onclick = () => { APP.currentPage = btn.dataset.page; render(); };
   });
   const logout = async () => {
+    // Supprimer la session depuis Redis
+    if (APP.currentUser && APP.currentUser.sessionID) {
+      try {
+        await fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete_session',
+            sessionID: APP.currentUser.sessionID
+          })
+        });
+      } catch(e) {
+        console.error('Erreur suppression session:', e);
+      }
+    }
+    // Supprimer le sessionID depuis localStorage
+    localStorage.removeItem('sessionID');
+    
     // Envoyer une notification de déconnexion et le récapitulatif journalier
     if (APP.currentUser && APP.currentUser.role === 'chauffeur') {
       const chauffeurName = (APP.currentUser.prenom || '') + ' ' + (APP.currentUser.nom || '');
@@ -1469,7 +1542,25 @@ function renderChauffeurMain(app, c) {
     }
   }
 
-  document.getElementById('ch-logout').onclick = () => {
+  document.getElementById('ch-logout').onclick = async () => {
+    // Supprimer la session depuis Redis
+    if (APP.currentUser && APP.currentUser.sessionID) {
+      try {
+        await fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete_session',
+            sessionID: APP.currentUser.sessionID
+          })
+        });
+      } catch(e) {
+        console.error('Erreur suppression session:', e);
+      }
+    }
+    // Supprimer le sessionID depuis localStorage
+    localStorage.removeItem('sessionID');
+    
     // Envoyer une notification de déconnexion
     if (APP.currentUser && APP.currentUser.role === 'chauffeur' && APP.allData.length < 999) {
       const admins = getUsers().filter(a => a.role === 'admin');

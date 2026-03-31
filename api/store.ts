@@ -32,9 +32,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const redis = createRedisConnection();
 
   try {
-    const { action } = req.query;
+    const { action, sessionID } = req.query;
 
     if (req.method === 'GET') {
+      // Récupérer une session utilisateur
+      if (sessionID) {
+        const sessionData = await redis.get(`session:${sessionID}`);
+        await redis.quit();
+        if (!sessionData) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session not found or expired'
+          });
+        }
+        return res.status(200).json({
+          success: true,
+          user: JSON.parse(sessionData)
+        });
+      }
+      
       // Récupérer toutes les données
       const data = await redis.get('app_data');
       await redis.quit();
@@ -45,6 +61,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
+      // Créer une nouvelle session utilisateur
+      if (action === 'create_session') {
+        const { user } = req.body;
+        if (!user || !user.sessionID) {
+          await redis.quit();
+          return res.status(400).json({ success: false, error: 'Missing user or sessionID' });
+        }
+        
+        // Sauvegarder la session avec TTL de 30j (2592000 secondes)
+        await redis.set(`session:${user.sessionID}`, JSON.stringify(user), 'EX', 2592000);
+        await redis.quit();
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Session created',
+          sessionID: user.sessionID
+        });
+      }
+      
+      // Supprimer une session utilisateur
+      if (action === 'delete_session') {
+        const { sessionID: delSessionID } = req.body;
+        if (!delSessionID) {
+          await redis.quit();
+          return res.status(400).json({ success: false, error: 'Missing sessionID' });
+        }
+        
+        await redis.del(`session:${delSessionID}`);
+        await redis.quit();
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Session deleted'
+        });
+      }
+      
       // Sauvegarder/mettre à jour les données
       const { data } = req.body;
       if (!data) {
