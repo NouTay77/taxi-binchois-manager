@@ -152,7 +152,7 @@ window.dataSdk = {
       const response = await fetch('/api/sync-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: this.lastSyncHash,
+        body: JSON.stringify(this.data),
         timeout: 10000
       });
       

@@ -8,11 +8,10 @@ function getRedis() {
   if (!redis) {
     redis = new Redis(process.env.REDIS_URL as string, {
       retryStrategy: (times) => Math.min(times * 50, 2000),
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null,
       enableReadyCheck: false,
       enableOfflineQueue: false,
       connectTimeout: 10000,
-      maxRetriesPerRequest: null,
     });
 
     redis.on('error', (err: any) => console.error('Redis error:', err));

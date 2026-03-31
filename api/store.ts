@@ -2,22 +2,34 @@
 import Redis from 'ioredis';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const redis = new Redis(process.env.REDIS_URL as string, {
-  retryStrategy: (times) => Math.min(times * 50, 2000),
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: false,
-  enableOfflineQueue: false,
-});
-
-redis.on('error', (err) => console.error('Redis error:', err));
-redis.on('connect', () => console.log('Redis connected'));
+// Crée une NOUVELLE connexion Redis pour chaque requête (stateless Vercel)
+function createRedisConnection() {
+  return new Redis(process.env.REDIS_URL || '', {
+    maxRetriesPerRequest: null,
+    enableOfflineQueue: false,
+    connectTimeout: 10000,
+    commandTimeout: 5000,
+    retryStrategy: (times) => Math.min(times * 50, 500),
+  });
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Vérifier que REDIS_URL est configuré
+  if (!process.env.REDIS_URL) {
+    return res.status(503).json({
+      success: false,
+      error: 'REDIS_URL not configured - database not available'
+    });
+  }
+
+  const redis = createRedisConnection();
 
   try {
     const { action } = req.query;
@@ -25,6 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'GET') {
       // Récupérer toutes les données
       const data = await redis.get('app_data');
+      await redis.quit();
       return res.status(200).json({
         success: true,
         data: data ? JSON.parse(data) : []
@@ -35,10 +48,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Sauvegarder/mettre à jour les données
       const { data } = req.body;
       if (!data) {
+        await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing data' });
       }
       
       await redis.set('app_data', JSON.stringify(data), 'EX', 86400 * 30); // 30 jours
+      await redis.quit();
       
       return res.status(200).json({
         success: true,
@@ -50,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Ajouter/modifier un item
       const { item, type } = req.body;
       if (!item || !type) {
+        await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing item or type' });
       }
 
@@ -64,6 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       await redis.set('app_data', JSON.stringify(allData), 'EX', 86400 * 30);
+      await redis.quit();
 
       return res.status(200).json({
         success: true,
@@ -75,6 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Supprimer un item
       const { id, type } = req.body;
       if (!id || !type) {
+        await redis.quit();
         return res.status(400).json({ success: false, error: 'Missing id or type' });
       }
 
@@ -83,6 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       const filtered = allData.filter((d: any) => !(d.type === type && d.__backendId === id));
       await redis.set('app_data', JSON.stringify(filtered), 'EX', 86400 * 30);
+      await redis.quit();
 
       return res.status(200).json({
         success: true,
@@ -90,8 +109,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    await redis.quit();
     res.status(400).json({ success: false, error: 'Invalid method' });
   } catch (err: any) {
+    try { await redis.quit(); } catch (e) {}
     console.error('Store API error:', err);
     return res.status(500).json({
       success: false,
