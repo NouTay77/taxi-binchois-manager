@@ -260,7 +260,6 @@ console.log('Initialisation du SDK données...');
                 APP.courseState = JSON.parse(sessionData.user.course_state_active);
               } catch(e) {}
             }
-                    render();
           }
                 } else if (sessionRes.status === 404) {
                   // Uniquement si la session est explicitement introuvable
@@ -270,11 +269,10 @@ console.log('Initialisation du SDK données...');
                 console.error('Erreur serveur ou Redis lent (session conservée localement):', e);
       }
     }
-    // On force un premier rendu pour masquer le bouton "Créer Admin" 
-    // si des données sont arrivées du Cloud
-    render(); 
+            render();
   } else {
     showToast('Erreur de connexion au Cloud','error');
+            render();
   }
 }
 initApp();
@@ -579,31 +577,27 @@ async function renderLogin(app, c) {
       });
       
       if (createSessionRes.ok) {
-        // Sauvegarder le sessionID dans localStorage
-        localStorage.setItem('sessionID', sessionID);
+        const res = await createSessionRes.json();
+        if (res.success && res.sessionID) {
+          localStorage.setItem('sessionID', res.sessionID);
+          APP.currentUser = user;
+          APP.currentPage = user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
+          if (user.en_service && user.course_state_active) {
+            try { APP.courseState = JSON.parse(user.course_state_active); } catch(e) {}
+          }
+          if (user.role === 'chauffeur') {
+            const userName = ((user.prenom || '') + ' ' + (user.nom || '')).trim() || 'Chauffeur';
+            await notifyAdmins('✅ ' + userName + ' s\'est connecté', 'login');
+          }
+          render();
+        }
       } else {
         showToast('Erreur création session', 'error');
-        return;
       }
     } catch(e) {
       console.error('Erreur création session:', e);
       showToast('Erreur création session', 'error');
-      return;
     }
-    
-    APP.currentUser = user;
-    APP.currentPage = user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
-    if (user.en_service && user.course_state_active) {
-      try {
-        APP.courseState = JSON.parse(user.course_state_active);
-      } catch(e) {}
-    }
-    // Envoyer une notification de connexion aux admins
-    if (user.role === 'chauffeur') {
-      const userName = ((user.prenom || '') + ' ' + (user.nom || '')).trim() || 'Chauffeur';
-      await notifyAdmins('✅ ' + userName + ' s\'est connecté', 'login');
-    }
-    render();
   };
 
   document.getElementById('login-btn').onclick = performLogin;
@@ -649,8 +643,7 @@ const email = document.getElementById('login-email').value.trim();
     
     if (res.isOk) {
         showToast('Admin créé sur le Cloud !');
-        // On attend 1 seconde pour laisser le Cloud respirer et on recharge
-        setTimeout(() => { location.reload(); }, 1000);
+        render();
     } else {
         showToast('Erreur Cloud','error');
         btn.disabled = false;
@@ -899,11 +892,20 @@ function renderAdminVehicules(app, c) {
     if(editingV) {
       const updated = {...editingV, immatriculation:immat, marque, modele};
       const r = await window.dataSdk.update(updated);
-      if(r.isOk) { showToast('Véhicule modifié'); await syncExcelFile('vehicule'); } else showToast('Erreur','error');
+      if(r.isOk) { 
+        showToast('Véhicule modifié'); 
+        await syncExcelFile('vehicule'); 
+      } else showToast('Erreur','error');
     } else {
       if(APP.allData.length >= 999) { showToast('Limite de données atteinte','error'); btn.disabled=false; btn.textContent='Enregistrer'; return; }
-      const r = await window.dataSdk.create({type:'vehicule',immatriculation:immat,marque,modele,statut_vehicule:'libre',email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''});
-      if(r.isOk) { showToast('Véhicule ajouté'); await syncExcelFile('vehicule'); } else showToast('Erreur','error');
+      const newV = {type:'vehicule',immatriculation:immat,marque,modele,statut_vehicule:'libre',email:'',password:'',role:'',nom:'',prenom:'',active:true,en_service:false,vehicule_id:'',chauffeur_id:'',chauffeur_nom:'',date_debut_service:'',date_fin_service:'',heure_prise_en_charge:'',commune_prise_en_charge:'',heure_fin_course:'',commune_fin_course:'',prix:0,course_id:'',statut_chauffeur:'',statut_vehicule_course:'',photo_profile:'',course_state_active:''};
+      const r = await window.dataSdk.create(newV);
+      if(r.isOk) { 
+        showToast('Véhicule ajouté'); 
+        if (r.data) APP.allData.push(r.data);
+        await syncExcelFile('vehicule'); 
+        render();
+      } else showToast('Erreur','error');
     }
     btn.disabled=false; btn.textContent='Enregistrer';
   };
@@ -1159,11 +1161,14 @@ document.getElementById('ch-save').onclick = async () => {
           course_state_active: ''
         };
         r = await window.dataSdk.create(newData);
+        if (r.isOk && r.data) {
+          APP.allData.push(r.data);
+          await syncExcelFile('user');
+        }
       }
 
       if (r.isOk) {
         showToast(editingCh ? 'Chauffeur modifié avec succès' : 'Chauffeur créé avec succès');
-        if (!editingCh) await syncExcelFile('user');
         form.classList.add('hidden');
         editingCh = null;
         render();

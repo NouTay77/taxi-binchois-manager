@@ -19,19 +19,21 @@ window.dataSdk = {
       }
       
       if (!res.ok) {
-        throw new Error('Impossible de charger les données. Statut HTTP: ' + res.status);
-      }
-      
-      const cloudData = await res.json();
-      if (Array.isArray(cloudData)) {
-        this.data = cloudData;
+        console.warn('Statut HTTP non-OK, initialisation à vide');
+        this.data = [];
+      } else {
+        const cloudData = await res.json();
+        this.data = Array.isArray(cloudData) ? cloudData : [];
         this.lastSyncHash = JSON.stringify(this.data);
         console.log('SDK initialisé avec', this.data.length, 'records depuis Redis');
-      } else {
-        throw new Error('Format de données invalide depuis Redis');
+        
+        // Log spécifique pour les chauffeurs
+        const chauffeurs = this.data.filter(d => d.type === 'user' && d.role === 'chauffeur');
+        console.log('Liste des chauffeurs reçus de Redis:', chauffeurs);
       }
     } catch (e) {
       console.error("Erreur fatale lors du chargement Redis:", e);
+      this.data = []; // Fallback pour éviter les erreurs de mapping
       return { isOk: false, error: e.message };
     }
     
@@ -60,20 +62,23 @@ window.dataSdk = {
         clearTimeout(timeoutId);
         if (res.ok) {
           const cloudData = await res.json();
-          if (Array.isArray(cloudData)) {
-            const cloudHash = JSON.stringify(cloudData);
+          const dataArray = Array.isArray(cloudData) ? cloudData : [];
+          const cloudHash = JSON.stringify(dataArray);
             
-            // Si les données ont changé depuis un autre appareil
-            if (cloudHash !== this.lastSyncHash) {
-              this.data = cloudData;
-              this.lastSyncHash = cloudHash;
-              console.log('Sync depuis Redis:', this.data.length, 'records');
-              if (this.handler?.onDataChanged) {
-                try {
-                  this.handler.onDataChanged(this.data);
-                } catch (err) {
-                  console.error("Erreur onDataChanged lors polling:", err);
-                }
+          // Si les données ont changé depuis un autre appareil
+          if (cloudHash !== this.lastSyncHash) {
+            this.data = dataArray;
+            this.lastSyncHash = cloudHash;
+            console.log('Sync Auto depuis Redis:', this.data.length, 'records');
+            
+            const chauffeurs = this.data.filter(d => d.type === 'user' && d.role === 'chauffeur');
+            console.log('Mise à jour Redis - Chauffeurs:', chauffeurs);
+
+            if (this.handler?.onDataChanged) {
+              try {
+                this.handler.onDataChanged(this.data);
+              } catch (err) {
+                console.error("Erreur onDataChanged lors polling:", err);
               }
             }
           }
@@ -90,7 +95,7 @@ window.dataSdk = {
       const newItem = { ...item, __backendId: Date.now().toString() + Math.random().toString(36).substr(2,5), active: true };
       this.data.push(newItem);
       await this.save();
-      return { isOk: true, item: newItem };
+      return { isOk: true, data: newItem }; // Retourne 'data' pour correspondre au frontend
     } catch (err) {
       console.error("Erreur create:", err);
       return { isOk: false, error: err.message };
