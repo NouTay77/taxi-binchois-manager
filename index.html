@@ -264,6 +264,24 @@ async function loadCloudData() {
   }
 }
 
+async function refreshAppData() {
+  console.log('[RefreshData] Actualisation des données du Cloud...');
+  if (!window.dataSdk) {
+    console.error('[RefreshData] Erreur: window.dataSdk est introuvable');
+    return false;
+  }
+  const result = await window.dataSdk.list();
+  if (result.isOk) {
+    APP.users = result.users || [];
+    APP.vehicles = result.vehicles || [];
+    console.log('[RefreshData] ✅ Données actualisées:', APP.users.length, 'chauffeurs,', APP.vehicles.length, 'véhicules');
+    return true;
+  } else {
+    console.error('[RefreshData] Erreur:', result.error);
+    return false;
+  }
+}
+
 async function initApp() {
   if (APP._isRestoring) {
     console.log('[Restore] Déjà en cours...');
@@ -333,6 +351,9 @@ async function initApp() {
     } else {
       console.log('[Restore] Aucun sessionID trouvé');
     }
+    
+    // Synchroniser les données après restauration de session
+    await refreshAppData();
     
     APP._isRestoring = false;
     console.log('[Init] Terminé. Appel render(). currentUser:', APP.currentUser ? APP.currentUser.email : 'null');
@@ -684,6 +705,7 @@ async function renderLogin(app, c) {
       if (createSessionRes.ok) {
         const res = await createSessionRes.json();
         if (res.success && res.sessionID) {
+          console.log('[Login] SessionID sauvegardé:', res.sessionID.substring(0, 8) + '...');
           localStorage.setItem('sessionID', res.sessionID);
           APP.currentUser = user;
           APP.currentPage = user.role === 'admin' ? 'admin-dashboard' : 'chauffeur-main';
@@ -694,6 +716,7 @@ async function renderLogin(app, c) {
             const userName = ((user.prenom || '') + ' ' + (user.nom || '')).trim() || 'Chauffeur';
             await notifyAdmins('✅ ' + userName + ' s\'est connecté', 'login');
           }
+          showToast('Connecté avec succès');
           render();
         }
       } else {
@@ -748,6 +771,7 @@ const email = document.getElementById('login-email').value.trim();
     
     if (res.isOk) {
         showToast('Admin créé sur le Cloud !');
+        await refreshAppData();
         render();
     } else {
         showToast('Erreur Cloud','error');
@@ -1003,6 +1027,7 @@ function renderAdminVehicules(app, c) {
           await syncExcelFile('vehicule');
           form.classList.add('hidden');
           await new Promise(r => setTimeout(r, 300));
+          await refreshAppData();
           render();
         } else showToast('Erreur: ' + (r.error || 'modification échouée'),'error');
       } else {
@@ -1014,6 +1039,7 @@ function renderAdminVehicules(app, c) {
           await new Promise(res => setTimeout(res, 200));
           await syncExcelFile('vehicule');
           form.classList.add('hidden');
+          await refreshAppData();
           render();
         } else showToast('Erreur: ' + (r.error || 'création échouée'),'error');
       }
@@ -1295,6 +1321,7 @@ document.getElementById('ch-save').onclick = async () => {
         }
         form.classList.add('hidden');
         editingCh = null;
+        await refreshAppData();
         render();
       } else {
         showToast((r.error || 'Erreur lors de l\'enregistrement'), 'error');
