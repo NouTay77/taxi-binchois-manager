@@ -543,11 +543,10 @@ async function renderLogin(app, c) {
     
     // Sauvegarder la session dans Redis
     try {
-      const createSessionRes = await fetch('/api/store', {
+      const createSessionRes = await fetch('/api/store?action=create_session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'create_session',
           user: user
         })
       });
@@ -676,11 +675,10 @@ function adminLayout(app, c, activePage, contentHTML) {
     // Supprimer la session depuis Redis
     if (APP.currentUser && APP.currentUser.sessionID) {
       try {
-        await fetch('/api/store', {
+        await fetch('/api/store?action=delete_session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'delete_session',
             sessionID: APP.currentUser.sessionID
           })
         });
@@ -1546,11 +1544,10 @@ function renderChauffeurMain(app, c) {
     // Supprimer la session depuis Redis
     if (APP.currentUser && APP.currentUser.sessionID) {
       try {
-        await fetch('/api/store', {
+        await fetch('/api/store?action=delete_session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'delete_session',
             sessionID: APP.currentUser.sessionID
           })
         });
