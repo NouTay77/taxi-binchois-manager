@@ -7,47 +7,29 @@ window.dataSdk = {
   async init(dataHandler) {
     this.handler = dataHandler;
     try {
-      // 1. On va chercher les données sur Redis via sync-excel
-      try {
-        const res = await fetch('/api/sync-excel', { timeout: 5000 });
-        if (res.ok) {
-          const cloudData = await res.json();
-          // Si le cloud a des données, on les utilise
-          if (Array.isArray(cloudData) && cloudData.length > 0) {
-            this.data = cloudData;
-            localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
-            this.lastSyncHash = JSON.stringify(this.data);
-          } else {
-            // Sinon on regarde dans le téléphone/PC (mémoire locale)
-            const saved = localStorage.getItem('dataSdk_data');
-            if (saved) {
-              this.data = JSON.parse(saved);
-              this.lastSyncHash = saved;
-            }
-          }
-        } else {
-          throw new Error('API returned ' + res.status);
-        }
-      } catch (apiErr) {
-        console.log("Erreur Cloud (peut être normal en local):", apiErr.message);
-        const saved = localStorage.getItem('dataSdk_data');
-        if (saved) {
-          this.data = JSON.parse(saved);
-          this.lastSyncHash = saved;
-        }
+      // Charger les données UNIQUEMENT depuis Redis via sync-excel
+      const res = await fetch('/api/sync-excel', { timeout: 5000 });
+      
+      if (res.status === 503) {
+        const err = await res.json();
+        throw new Error('Base de données non disponible: ' + (err.error || 'Redis non configuré'));
+      }
+      
+      if (!res.ok) {
+        throw new Error('Impossible de charger les données. Statut HTTP: ' + res.status);
+      }
+      
+      const cloudData = await res.json();
+      if (Array.isArray(cloudData)) {
+        this.data = cloudData;
+        this.lastSyncHash = JSON.stringify(this.data);
+        console.log('SDK initialisé avec', this.data.length, 'records depuis Redis');
+      } else {
+        throw new Error('Format de données invalide depuis Redis');
       }
     } catch (e) {
-      console.error("Erreur init SDK:", e);
-      const saved = localStorage.getItem('dataSdk_data');
-      if (saved) {
-        try {
-          this.data = JSON.parse(saved);
-          this.lastSyncHash = saved;
-        } catch (parseErr) {
-          console.error("Erreur parsing localStorage:", parseErr);
-          this.data = [];
-        }
-      }
+      console.error("Erreur fatale lors du chargement Redis:", e);
+      return { isOk: false, error: e.message };
     }
     
     if (this.handler?.onDataChanged) {
@@ -79,7 +61,7 @@ window.dataSdk = {
             if (cloudHash !== this.lastSyncHash) {
               this.data = cloudData;
               this.lastSyncHash = cloudHash;
-              localStorage.setItem('dataSdk_data', JSON.stringify(this.data));
+              console.log('Sync depuis Redis:', this.data.length, 'records');
               if (this.handler?.onDataChanged) {
                 try {
                   this.handler.onDataChanged(this.data);
@@ -154,11 +136,10 @@ window.dataSdk = {
 
   async save() {
     try {
-      // 1. Sauvegarde locale immédiate
-      const dataStr = JSON.stringify(this.data);
-      localStorage.setItem('dataSdk_data', dataStr);
-      this.lastSyncHash = dataStr;
+      // Mise à jour du hash
+      this.lastSyncHash = JSON.stringify(this.data);
       
+      // Callback obligatoire
       if (this.handler?.onDataChanged) {
         try {
           this.handler.onDataChanged(this.data);
@@ -167,20 +148,23 @@ window.dataSdk = {
         }
       }
       
-      // 2. Envoi au Cloud (Redis/sync-excel) - ne pas bloquer si erreur
-      try {
-        await fetch('/api/sync-excel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: dataStr,
-          timeout: 5000
-        });
-      } catch (cloudErr) {
-        // Erreur cloud = pas grave, données sauvegardées localement
-        console.log("Note: Cloud sync échoué (normal en dev):", cloudErr.message);
+      // Sauvegarde OBLIGATOIRE dans Redis
+      const response = await fetch('/api/sync-excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: this.lastSyncHash,
+        timeout: 10000
+      });
+      
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error('Redis save échoué HTTP ' + response.status + ': ' + errText);
       }
+      
+      console.log('Données sauvegardées dans Redis');
     } catch (err) {
-      console.error("Erreur save:", err);
+      console.error("Erreur CRITIQUE save (données non sauvegardées):", err);
+      throw err; // Re-lancer l'erreur pour que le caller le sache
     }
   }
 };

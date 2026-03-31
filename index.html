@@ -629,7 +629,7 @@ function renderLogin(app, c) {
 
 
   document.getElementById('setup-btn').onclick = async () => {
-const email = document.getElementById('login-email').value.trim();
+    const email = document.getElementById('login-email').value.trim();
     const pass = document.getElementById('login-pass').value;
     
     if (!email || !pass) { 
@@ -641,32 +641,39 @@ const email = document.getElementById('login-email').value.trim();
     btn.disabled = true; 
     btn.textContent = 'Création...';
     
-    // Création de l'admin
-    const res = await window.dataSdk.create({
-        type:'user',
-        email,
-        password:pass,
-        role:'admin',
-        nom:'Admin',
-        prenom:'Principal',
-        active:true,
-        en_service:false,
-        photo_profile:generateRandomAvatar('A','P')
-    });
-    
-    if (res.isOk) {
-        showToast('Admin créé sur le Cloud !');
-        // On attend 1 seconde pour laisser le Cloud respirer et on recharge
-        setTimeout(() => { location.reload(); }, 1000);
-    } else {
-        showToast('Erreur Cloud','error');
-        btn.disabled = false;
-        btn.textContent = 'Créer un admin';
+    try {
+      // Création de l'admin
+      const res = await window.dataSdk.create({
+          type:'user',
+          email,
+          password:pass,
+          role:'admin',
+          nom:'Admin',
+          prenom:'Principal',
+          active:true,
+          en_service:false,
+          photo_profile:generateRandomAvatar('A','P')
+      });
+      
+      if (res.isOk) {
+          showToast('Admin créé dans la base de données !');
+          // On attend 2 secondes pour laisser Redis se synchroniser
+          setTimeout(() => { location.reload(); }, 2000);
+      } else {
+          showToast('Erreur: ' + (res.error || 'Impossible de créer l\'admin'),'error');
+          console.error('Erreur création admin:', res.error);
+          btn.disabled = false;
+          btn.textContent = 'Créer un admin';
+      }
+    } catch (err: any) {
+      console.error('Exception lors de la création:', err);
+      showToast('Erreur base de données: ' + err.message,'error');
+      btn.disabled = false;
+      btn.textContent = 'Créer un admin';
     }
-};
-}
+  };
 
-function adminLayout(app, c, activePage, contentHTML) {
+  function adminLayout(app, c, activePage, contentHTML) {
   const navItems = [
     {id:'admin-dashboard',icon:'layout-dashboard',label:'Tableau de bord'},
     {id:'admin-vehicules',icon:'car',label:'Véhicules'},
